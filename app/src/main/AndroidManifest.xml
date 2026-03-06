@@ -63,7 +63,7 @@
                 android:resource="@xml/livewallpaper" />
         </service>
         <service
-            android:name=".service.ClearDesktopService"
+            android:name=".service.UnlockWallpaperService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

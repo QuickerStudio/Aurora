@@ -15,7 +15,7 @@ import ai.wallpaper.aurora.R
 import ai.wallpaper.aurora.activity.FullscreenVideoActivity
 import java.io.File
 
-class ClearDesktopService : Service() {
+class UnlockWallpaperService : Service() {
 
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -83,7 +83,7 @@ class ClearDesktopService : Service() {
         private const val NOTIFICATION_ID = 2001
 
         fun start(context: Context) {
-            val intent = Intent(context, ClearDesktopService::class.java)
+            val intent = Intent(context, UnlockWallpaperService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -92,7 +92,7 @@ class ClearDesktopService : Service() {
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, ClearDesktopService::class.java)
+            val intent = Intent(context, UnlockWallpaperService::class.java)
             context.stopService(intent)
         }
     }
