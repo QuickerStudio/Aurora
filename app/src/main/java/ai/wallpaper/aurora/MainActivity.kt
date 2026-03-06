@@ -685,6 +685,12 @@ fun MainScreen(
                                 themeColors = themeColors,
                                 onVideoTouch = { videoId ->
                                     selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                                },
+                                onVideoClick = { videoUri ->
+                                    // 直接切换壁纸路径，不打开系统壁纸选择器
+                                    videoUri?.let { uri ->
+                                        saveVideoPath(context, uri.toString())
+                                    }
                                 }
                             )
                         }
@@ -711,9 +717,9 @@ fun MainScreen(
                             }
                         },
                         onVideoClick = { video ->
+                            // 直接保存视频路径，不打开系统壁纸选择器
                             saveVideoUri(context, video.uri)
-                            VideoLiveWallpaperService.setToWallPaper(context)
-                            // 重新加载历史记录
+                            // 添加到历史记录
                             val history = WallpaperHistoryManager.loadHistory(context)
                             videoList = history.map { item ->
                                 VideoItem(
@@ -734,7 +740,8 @@ fun VideoGridItem(
     video: VideoItem,
     isSelected: Boolean,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
-    onVideoTouch: (Int) -> Unit
+    onVideoTouch: (Int) -> Unit,
+    onVideoClick: (Uri?) -> Unit = {}
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
@@ -781,6 +788,9 @@ fun VideoGridItem(
                     onPress = {
                         onVideoTouch(video.id)
                         tryAwaitRelease()
+                    },
+                    onTap = {
+                        onVideoClick(video.uri)
                     }
                 )
             }
