@@ -1,0 +1,111 @@
+c:\Users\Quick\AndroidStudioProjects\Aurora\install-gradle-9.4.0.bat:23:set /p DOWNLOADED_FILE="请输入下载的 gradle-9.4.0-bin.zip 完整路径（或按回车跳过）: "
+c:\Users\Quick\AndroidStudioProjects\Aurora\gradle\wrapper\gradle-wrapper.properties:5:distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.0-bin.zip
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:8:import android.service.wallpaper.WallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:13:class VideoLiveWallpaperService : WallpaperService() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:17:        private var broadcastReceiver: BroadcastReceiver? = null
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:24:                this@VideoLiveWallpaperService.openFileInput("video_live_wallpaper_file_path")
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:33:                    this@VideoLiveWallpaperService,
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:34:                    object : BroadcastReceiver() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:43:                registerReceiver(object : BroadcastReceiver() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:69:                            setDataSource(this@VideoLiveWallpaperService, Uri.parse(path))
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:127:        const val VIDEO_PARAMS_CONTROL_ACTION = "com.wallpaper.livewallpaper"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\VideoLiveWallpaperService.kt:148:                    ComponentName(context, VideoLiveWallpaperService::class.java)
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\ClearDesktopService.kt:7:import android.content.BroadcastReceiver
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\service\ClearDesktopService.kt:20:    private val unlockReceiver = object : BroadcastReceiver() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\MainActivity.kt:44:import ai.wallpaper.aurora.service.VideoLiveWallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\MainActivity.kt:109:            VideoLiveWallpaperService.setToWallPaper(context)
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\MainActivity.kt:189:                                    VideoLiveWallpaperService.unmuteMusic(context)
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\MainActivity.kt:192:                                    VideoLiveWallpaperService.muteMusic(context)
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\MainActivity.kt:260:                                    VideoLiveWallpaperService.setToWallPaper(context)
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\broadcast\UnlockReceiver.kt:3:import android.content.BroadcastReceiver
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\broadcast\UnlockReceiver.kt:9:class UnlockReceiver : BroadcastReceiver() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\broadcast\BootBroadcast.kt:3:import android.content.BroadcastReceiver
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\broadcast\BootBroadcast.kt:6:import ai.wallpaper.aurora.service.VideoLiveWallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\broadcast\BootBroadcast.kt:8:internal class BootBroadCast : BroadcastReceiver() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\broadcast\BootBroadcast.kt:10:        val service = Intent(context, VideoLiveWallpaperService::class.java)
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:7:import androidx.preference.PreferenceFragmentCompat
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:8:import androidx.preference.SwitchPreferenceCompat
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:11:import ai.wallpaper.aurora.service.VideoLiveWallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:14:class SettingsActivity : AppCompatActivity() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:25:    class SettingsFragment : PreferenceFragmentCompat() {
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:36:                        VideoLiveWallpaperService.unmuteMusic(requireContext())
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\java\ai\wallpaper\aurora\activity\SettingsActivity.kt:39:                        VideoLiveWallpaperService.muteMusic(requireContext())
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\AndroidManifest.xml:10:    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\AndroidManifest.xml:36:            android:name=".activity.SettingsActivity"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\AndroidManifest.xml:52:            android:name=".service.VideoLiveWallpaperService"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\AndroidManifest.xml:59:                <action android:name="android.service.wallpaper.WallpaperService" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\AndroidManifest.xml:63:                android:resource="@xml/livewallpaper" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\src\main\AndroidManifest.xml:78:                <action android:name="android.intent.action.BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build.gradle.kts:56:    // AppCompat for SettingsActivity
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build.gradle.kts:60:    implementation("androidx.preference:preference-ktx:1.2.1")
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:13:MERGED from [androidx.preference:preference-ktx:1.2.1] C:\Users\Quick\.gradle\caches\9.4.0\transforms\38c51708e44e09626712a50f09b5bc22\transformed\preference-ktx-1.2.1\AndroidManifest.xml:17:1-24:12
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:14:MERGED from [androidx.preference:preference:1.2.1] C:\Users\Quick\.gradle\caches\9.4.0\transforms\73e3008478027ba929d23d09dd93e876\transformed\preference-1.2.1\AndroidManifest.xml:17:1-24:12
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:118:uses-permission#android.permission.RECEIVE_BOOT_COMPLETED
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:197:activity#ai.wallpaper.aurora.activity.SettingsActivity
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:225:service#ai.wallpaper.aurora.service.VideoLiveWallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:239:intent-filter#action:name:android.service.wallpaper.WallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:241:action#android.service.wallpaper.WallpaperService
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:271:intent-filter#action:name:android.intent.action.BOOT_COMPLETED
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:273:action#android.intent.action.BOOT_COMPLETED
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:305:MERGED from [androidx.preference:preference-ktx:1.2.1] C:\Users\Quick\.gradle\caches\9.4.0\transforms\38c51708e44e09626712a50f09b5bc22\transformed\preference-ktx-1.2.1\AndroidManifest.xml:20:5-22:41
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:306:MERGED from [androidx.preference:preference-ktx:1.2.1] C:\Users\Quick\.gradle\caches\9.4.0\transforms\38c51708e44e09626712a50f09b5bc22\transformed\preference-ktx-1.2.1\AndroidManifest.xml:20:5-22:41
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:307:MERGED from [androidx.preference:preference:1.2.1] C:\Users\Quick\.gradle\caches\9.4.0\transforms\73e3008478027ba929d23d09dd93e876\transformed\preference-1.2.1\AndroidManifest.xml:20:5-22:41
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\outputs\logs\manifest-merger-debug-report.txt:308:MERGED from [androidx.preference:preference:1.2.1] C:\Users\Quick\.gradle\caches\9.4.0\transforms\73e3008478027ba929d23d09dd93e876\transformed\preference-1.2.1\AndroidManifest.xml:20:5-22:41
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\symbol_list_with_package_name\debug\generateDebugRFile\package-aware-r.txt:37:xml livewallpaper
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\compile_symbol_list\debug\generateDebugRFile\R.txt:36:int xml livewallpaper 0x0
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\stable_resource_ids_file\debug\processDebugResources\stableIds.txt:14:ai.wallpaper.aurora:styleable/PreferenceFragmentCompat = 0x7f120033
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\stable_resource_ids_file\debug\processDebugResources\stableIds.txt:1849:ai.wallpaper.aurora:xml/livewallpaper = 0x7f130002
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\packageDebug\tmp\debug\zip-cache\javaResources0:1:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\packageDebug\tmp\debug\zip-cache\androidResources:1:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\runtime_symbol_list\debug\processDebugResources\R.txt:2532:int[] styleable PreferenceFragmentCompat { 0x010100f2, 0x01010129, 0x0101012a, 0x7f04002e }
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\runtime_symbol_list\debug\processDebugResources\R.txt:2533:int styleable PreferenceFragmentCompat_android_layout 0
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\runtime_symbol_list\debug\processDebugResources\R.txt:2534:int styleable PreferenceFragmentCompat_android_divider 1
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\runtime_symbol_list\debug\processDebugResources\R.txt:2535:int styleable PreferenceFragmentCompat_android_dividerHeight 2
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\runtime_symbol_list\debug\processDebugResources\R.txt:2536:int styleable PreferenceFragmentCompat_allowDividerAfterLastItem 3
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\runtime_symbol_list\debug\processDebugResources\R.txt:2740:int xml livewallpaper 0x7f130002
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\packageDebugResources\merger.xml:2:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\packageDebugResources\compile-file-map.properties:18:ai.wallpaper.aurora.app-main-4\:/xml/livewallpaper.xml=C\:\\Users\\Quick\\AndroidStudioProjects\\Aurora\\app\\build\\intermediates\\packaged_res\\debug\\packageDebugResources\\xml\\livewallpaper.xml
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\packageDebugResources\compile-file-map.properties:19:ai.wallpaper.aurora.app-main-4\:/xml/settings.xml=C\:\\Users\\Quick\\AndroidStudioProjects\\Aurora\\app\\build\\intermediates\\packaged_res\\debug\\packageDebugResources\\xml\\settings.xml
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\compile-file-map.properties:18:ai.wallpaper.aurora.app-main-64\:/xml/livewallpaper.xml=C\:\\Users\\Quick\\AndroidStudioProjects\\Aurora\\app\\build\\intermediates\\merged_res\\debug\\mergeDebugResources\\xml_livewallpaper.xml.flat
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\compile-file-map.properties:19:ai.wallpaper.aurora.app-main-64\:/xml/settings.xml=C\:\\Users\\Quick\\AndroidStudioProjects\\Aurora\\app\\build\\intermediates\\merged_res\\debug\\mergeDebugResources\\xml_settings.xml.flat
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifest\debug\processDebugMainManifest\AndroidManifest.xml:17:    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifest\debug\processDebugMainManifest\AndroidManifest.xml:54:            android:name="ai.wallpaper.aurora.activity.SettingsActivity"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifest\debug\processDebugMainManifest\AndroidManifest.xml:70:            android:name="ai.wallpaper.aurora.service.VideoLiveWallpaperService"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifest\debug\processDebugMainManifest\AndroidManifest.xml:77:                <action android:name="android.service.wallpaper.WallpaperService" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifest\debug\processDebugMainManifest\AndroidManifest.xml:82:                android:resource="@xml/livewallpaper" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifest\debug\processDebugMainManifest\AndroidManifest.xml:97:                <action android:name="android.intent.action.BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\manifest_merge_blame_file\debug\processDebugMainManifest\manifest-merger-blame-debug-report.txt:26:17    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\manifest_merge_blame_file\debug\processDebugMainManifest\manifest-merger-blame-debug-report.txt:99:54            android:name="ai.wallpaper.aurora.activity.SettingsActivity"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\manifest_merge_blame_file\debug\processDebugMainManifest\manifest-merger-blame-debug-report.txt:129:70            android:name="ai.wallpaper.aurora.service.VideoLiveWallpaperService"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\manifest_merge_blame_file\debug\processDebugMainManifest\manifest-merger-blame-debug-report.txt:143:77                <action android:name="android.service.wallpaper.WallpaperService" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\manifest_merge_blame_file\debug\processDebugMainManifest\manifest-merger-blame-debug-report.txt:152:82                android:resource="@xml/livewallpaper" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\manifest_merge_blame_file\debug\processDebugMainManifest\manifest-merger-blame-debug-report.txt:179:97                <action android:name="android.intent.action.BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifests\debug\processDebugManifest\AndroidManifest.xml:17:    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifests\debug\processDebugManifest\AndroidManifest.xml:54:            android:name="ai.wallpaper.aurora.activity.SettingsActivity"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifests\debug\processDebugManifest\AndroidManifest.xml:70:            android:name="ai.wallpaper.aurora.service.VideoLiveWallpaperService"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifests\debug\processDebugManifest\AndroidManifest.xml:77:                <action android:name="android.service.wallpaper.WallpaperService" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifests\debug\processDebugManifest\AndroidManifest.xml:82:                android:resource="@xml/livewallpaper" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_manifests\debug\processDebugManifest\AndroidManifest.xml:97:                <action android:name="android.intent.action.BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\local_only_symbol_list\debug\parseDebugLocalResources\R-def.txt:38:xml livewallpaper
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\merger.xml:4220:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\merger.xml:4482:    </declare-styleable><declare-styleable name="PreferenceFragmentCompat">
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\merger.xml:4592:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\merger.xml:4639:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\merger.xml:5123:    </declare-styleable><declare-styleable name="PreferenceFragmentCompat">
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml:17:    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml:54:            android:name="ai.wallpaper.aurora.activity.SettingsActivity"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml:70:            android:name="ai.wallpaper.aurora.service.VideoLiveWallpaperService"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml:77:                <action android:name="android.service.wallpaper.WallpaperService" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml:82:                android:resource="@xml/livewallpaper" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\packaged_manifests\debug\processDebugManifestForPackage\AndroidManifest.xml:97:                <action android:name="android.intent.action.BOOT_COMPLETED" />
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_res_blame_folder\debug\mergeDebugResources\out\single\mergeDebugResources.json:39:        "merged": "ai.wallpaper.aurora.app-debug-62:/xml_livewallpaper.xml.flat",
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_res_blame_folder\debug\mergeDebugResources\out\single\mergeDebugResources.json:40:        "source": "ai.wallpaper.aurora.app-main-64:/xml/livewallpaper.xml"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_res_blame_folder\debug\mergeDebugResources\out\single\mergeDebugResources.json:43:        "merged": "ai.wallpaper.aurora.app-debug-62:/xml_settings.xml.flat",
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\merged_res_blame_folder\debug\mergeDebugResources\out\single\mergeDebugResources.json:44:        "source": "ai.wallpaper.aurora.app-main-64:/xml/settings.xml"
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug-mergeJavaRes\zip-cache\9kSPxXqtoFO1A+yVV0A+Bg==:1:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug\mergeDebugResources\merged.dir\values\values.xml:3987:    <declare-styleable name="PreferenceFragmentCompat">
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug-mergeJavaRes\zip-cache\S_o+8cElLD_mVmKhTPQOMw==:1:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug-mergeJavaRes\zip-cache\W6p3oY2xwYu9RoEhFuEK1g==:1:[Omitted long matching line]
+c:\Users\Quick\AndroidStudioProjects\Aurora\app\build\intermediates\incremental\debug-mergeJavaRes\zip-cache\_uOZ8_5LfukDmfH_VEdxJg==:1:[Omitted long matching line]
+
+[Showing results with pagination = limit: 200, offset: 0]

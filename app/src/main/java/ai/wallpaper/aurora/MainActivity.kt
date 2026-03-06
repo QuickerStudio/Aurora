@@ -168,6 +168,10 @@ fun MainScreen(
     var selectedTheme by remember {
         mutableStateOf(initialSelectedTheme)
     }
+    var showUserGuideDialog by remember { mutableStateOf(false) }
+    var showReportIssueDialog by remember { mutableStateOf(false) }
+    var issueTitle by remember { mutableStateOf("") }
+    var issueBody by remember { mutableStateOf("") }
 
     // 获取当前主题颜色配置
     val themeColors = if (!followSystemTheme) {
@@ -181,6 +185,34 @@ fun MainScreen(
         0.3f
     )
     val websiteButtonContent = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+    val updateButtonBackground = lerp(
+        themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary,
+        Color.White,
+        0.3f
+    )
+    val updateButtonContent = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+    val issuesNewUrl = stringResource(R.string.issues_new_url)
+    val appVersion = stringResource(R.string.version_name)
+    val currentThemeName = if (followSystemTheme) {
+        stringResource(R.string.follow_system_theme)
+    } else {
+        when (selectedTheme) {
+            "classic" -> stringResource(R.string.theme_classic)
+            "modern" -> stringResource(R.string.theme_modern)
+            "elegant" -> stringResource(R.string.theme_elegant)
+            "vibrant" -> stringResource(R.string.theme_vibrant)
+            else -> selectedTheme
+        }
+    }
+    val deviceInfo = buildString {
+        appendLine("## Environment")
+        appendLine("- Aurora version: $appVersion")
+        appendLine("- Android version: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+        appendLine("- Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+        appendLine("- Current theme: $currentThemeName")
+        appendLine()
+        appendLine("## Feedback")
+    }
     val fabButtonBackground = lerp(
         themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary,
         Color.White,
@@ -259,11 +291,38 @@ fun MainScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.settings),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    val releasesUrl = stringResource(R.string.releases_url)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings),
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Button(
+                            onClick = {
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(releasesUrl)
+                                    )
+                                )
+                            },
+                            shape = RoundedCornerShape(999.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = updateButtonBackground,
+                                contentColor = updateButtonContent
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.check_update),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
 
                     HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp))
 
@@ -729,12 +788,118 @@ fun MainScreen(
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // 使用说明
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { showUserGuideDialog = true }) {
+                                    Text(
+                                        text = stringResource(R.string.user_guide),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+
+                            // 报告错误
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { showReportIssueDialog = true }) {
+                                    Text(
+                                        text = stringResource(R.string.report_issue),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     ) {
+        if (showUserGuideDialog) {
+            AlertDialog(
+                onDismissRequest = { showUserGuideDialog = false },
+                title = {
+                    Text(text = stringResource(R.string.user_guide))
+                },
+                text = {
+                    Text(
+                        text = stringResource(R.string.user_guide_content),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showUserGuideDialog = false }) {
+                        Text(text = stringResource(R.string.close))
+                    }
+                }
+            )
+        }
+
+        if (showReportIssueDialog) {
+            AlertDialog(
+                onDismissRequest = { showReportIssueDialog = false },
+                title = {
+                    Text(text = stringResource(R.string.report_issue))
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = issueTitle,
+                            onValueChange = { issueTitle = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.feedback_title)) }
+                        )
+                        OutlinedTextField(
+                            value = issueBody,
+                            onValueChange = { issueBody = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 5,
+                            label = { Text(stringResource(R.string.feedback_content)) }
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val title = issueTitle.trim()
+                            val body = issueBody.trim()
+                            if (title.isNotEmpty() && body.isNotEmpty()) {
+                                val fullBody = "$deviceInfo\n$body"
+                                val issueUrl = "$issuesNewUrl?title=${Uri.encode(title)}&body=${Uri.encode(fullBody)}"
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(issueUrl)
+                                    )
+                                )
+                                showReportIssueDialog = false
+                                issueTitle = ""
+                                issueBody = ""
+                            }
+                        },
+                        enabled = issueTitle.isNotBlank() && issueBody.isNotBlank()
+                    ) {
+                        Text(text = stringResource(R.string.submit))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showReportIssueDialog = false }) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
         Scaffold { paddingValues ->
             Column(
                 modifier = Modifier

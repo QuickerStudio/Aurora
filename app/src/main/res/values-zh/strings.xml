@@ -34,6 +34,17 @@
     <string name="aurora">Aurora</string>
     <string name="personal_ownership">个人所有，禁止商用</string>
     <string name="github_url" translatable="false">https://github.com/QuickerStudio/Aurora</string>
+    <string name="releases_url" translatable="false">https://github.com/QuickerStudio/Aurora/releases</string>
+    <string name="issues_url" translatable="false">https://github.com/QuickerStudio/Aurora/issues</string>
+    <string name="issues_new_url" translatable="false">https://github.com/QuickerStudio/Aurora/issues/new</string>
+    <string name="check_update">检查更新</string>
+    <string name="report_issue">报告错误</string>
+    <string name="feedback_title">反馈标题</string>
+    <string name="feedback_content">反馈内容</string>
+    <string name="submit">提交</string>
+    <string name="user_guide">使用说明</string>
+    <string name="user_guide_content">1. 点击壁纸按钮选择本地视频。\n\n2. 点击历史卡片即可设为壁纸。\n\n3. 长按历史卡片可删除记录。\n\n4. 可在设置侧边栏中调整主题、图标显示和其他行为。</string>
+    <string name="close">关闭</string>
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
     <string name="local_video_library">本地视频库</string>

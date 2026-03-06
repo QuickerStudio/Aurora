@@ -1,0 +1,878 @@
+diff --git a/app/src/main/java/ai/wallpaper/aurora/MainActivity.kt b/app/src/main/java/ai/wallpaper/aurora/MainActivity.kt
+index 398de75..65cb93c 100644
+--- a/app/src/main/java/ai/wallpaper/aurora/MainActivity.kt
++++ b/app/src/main/java/ai/wallpaper/aurora/MainActivity.kt
+@@ -12,7 +12,9 @@ import androidx.activity.ComponentActivity
+ import androidx.activity.compose.rememberLauncherForActivityResult
+ import androidx.activity.compose.setContent
+ import androidx.activity.result.contract.ActivityResultContracts
++import androidx.compose.animation.core.LinearEasing
+ import androidx.compose.animation.core.animateDpAsState
++import androidx.compose.animation.core.animateFloatAsState
+ import androidx.compose.animation.core.tween
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+@@ -43,7 +45,9 @@ import androidx.compose.material3.*
+ import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.alpha
+ import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.graphicsLayer
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.lerp
+ import androidx.compose.ui.input.pointer.pointerInput
+@@ -270,6 +274,43 @@ fun MainScreen(
+                         modifier = Modifier.padding(bottom = 8.dp)
+                     )
+ 
++                    // 自定义路径
++                    Text(
++                        text = stringResource(R.string.add_video_file_path),
++                        style = MaterialTheme.typography.titleMedium,
++                        modifier = Modifier.padding(bottom = 8.dp)
++                    )
++
++                    Row(
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .padding(vertical = 8.dp),
++                        horizontalArrangement = Arrangement.spacedBy(8.dp),
++                        verticalAlignment = Alignment.CenterVertically
++                    ) {
++                        OutlinedTextField(
++                            value = videoPath,
++                            onValueChange = { videoPath = it },
++                            modifier = Modifier.weight(1f),
++                            singleLine = true,
++                            placeholder = { Text(stringResource(R.string.add_path)) }
++                        )
++                        IconButton(
++                            onClick = {
++                                if (videoPath.isNotBlank()) {
++                                    saveVideoPath(context, videoPath)
++                                    VideoLiveWallpaperService.setToWallPaper(context)
++                                    videoPath = ""
++                                    scope.launch { drawerState.close() }
++                                }
++                            }
++                        ) {
++                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.apply))
++                        }
++                    }
++
++                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
++
+                     Row(
+                         modifier = Modifier
+                             .fillMaxWidth()
+@@ -342,46 +383,9 @@ fun MainScreen(
+ 
+                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+ 
+-                    // 自定义路径
+-                    Text(
+-                        text = stringResource(R.string.add_video_file_path),
+-                        style = MaterialTheme.typography.titleMedium,
+-                        modifier = Modifier.padding(bottom = 8.dp)
+-                    )
+-
+-                    Row(
+-                        modifier = Modifier
+-                            .fillMaxWidth()
+-                            .padding(vertical = 8.dp),
+-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+-                        verticalAlignment = Alignment.CenterVertically
+-                    ) {
+-                        OutlinedTextField(
+-                            value = videoPath,
+-                            onValueChange = { videoPath = it },
+-                            modifier = Modifier.weight(1f),
+-                            singleLine = true,
+-                            placeholder = { Text(stringResource(R.string.add_path)) }
+-                        )
+-                        IconButton(
+-                            onClick = {
+-                                if (videoPath.isNotBlank()) {
+-                                    saveVideoPath(context, videoPath)
+-                                    VideoLiveWallpaperService.setToWallPaper(context)
+-                                    videoPath = ""
+-                                    scope.launch { drawerState.close() }
+-                                }
+-                            }
+-                        ) {
+-                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.apply))
+-                        }
+-                    }
+-
+-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+-
+-                    // 主题设置
++                    // 应用设置
+                     Text(
+-                        text = stringResource(R.string.theme),
++                        text = stringResource(R.string.applications_settings),
+                         style = MaterialTheme.typography.titleMedium,
+                         modifier = Modifier.padding(bottom = 8.dp)
+                     )
+@@ -395,100 +399,30 @@ fun MainScreen(
+                     ) {
+                         Column(modifier = Modifier.weight(1f)) {
+                             Text(
+-                                text = stringResource(R.string.follow_system_theme),
++                                text = stringResource(R.string.show_fab_button),
+                                 style = MaterialTheme.typography.bodyLarge
+                             )
+                             Text(
+-                                text = if (followSystemTheme) stringResource(R.string.enable)
+-                                       else stringResource(R.string.disable),
++                                text = if (showFab) stringResource(R.string.show)
++                                       else stringResource(R.string.hide),
+                                 style = MaterialTheme.typography.bodySmall,
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                             )
+                         }
+                         Switch(
+-                            checked = followSystemTheme,
++                            checked = showFab,
+                             onCheckedChange = { checked ->
+-                                followSystemTheme = checked
+-                                val themeFile = File(context.filesDir, "follow_system_theme")
++                                showFab = checked
++                                val fabFile = File(context.filesDir, "show_fab")
+                                 if (checked) {
+-                                    themeFile.createNewFile()
++                                    fabFile.createNewFile()
+                                 } else {
+-                                    themeFile.delete()
++                                    fabFile.delete()
+                                 }
+-                                // 通知父组件更新主题
+-                                onFollowSystemThemeChange(checked)
+                             }
+                         )
+                     }
+ 
+-                    // 手动主题选择按钮（仅在不跟随系统主题时显示）
+-                    if (!followSystemTheme) {
+-                        Spacer(modifier = Modifier.height(16.dp))
+-
+-                        // 主题选择按钮 - 一排显示
+-                        Row(
+-                            modifier = Modifier.fillMaxWidth(),
+-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+-                        ) {
+-                            ThemeButton(
+-                                themeName = stringResource(R.string.theme_classic),
+-                                themeId = "classic",
+-                                isSelected = selectedTheme == "classic",
+-                                backgroundColor = getThemeColors("classic").secondary,
+-                                modifier = Modifier.weight(1f)
+-                            ) {
+-                                selectedTheme = "classic"
+-                                File(context.filesDir, "selected_theme").writeText("classic")
+-                                onThemeChange("classic")
+-                            }
+-
+-                            ThemeButton(
+-                                themeName = stringResource(R.string.theme_modern),
+-                                themeId = "modern",
+-                                isSelected = selectedTheme == "modern",
+-                                backgroundColor = getThemeColors("modern").secondary,
+-                                modifier = Modifier.weight(1f)
+-                            ) {
+-                                selectedTheme = "modern"
+-                                File(context.filesDir, "selected_theme").writeText("modern")
+-                                onThemeChange("modern")
+-                            }
+-
+-                            ThemeButton(
+-                                themeName = stringResource(R.string.theme_elegant),
+-                                themeId = "elegant",
+-                                isSelected = selectedTheme == "elegant",
+-                                backgroundColor = getThemeColors("elegant").secondary,
+-                                modifier = Modifier.weight(1f)
+-                            ) {
+-                                selectedTheme = "elegant"
+-                                File(context.filesDir, "selected_theme").writeText("elegant")
+-                                onThemeChange("elegant")
+-                            }
+-
+-                            ThemeButton(
+-                                themeName = stringResource(R.string.theme_vibrant),
+-                                themeId = "vibrant",
+-                                isSelected = selectedTheme == "vibrant",
+-                                backgroundColor = getThemeColors("vibrant").secondary,
+-                                modifier = Modifier.weight(1f)
+-                            ) {
+-                                selectedTheme = "vibrant"
+-                                File(context.filesDir, "selected_theme").writeText("vibrant")
+-                                onThemeChange("vibrant")
+-                            }
+-                        }
+-                    }
+-
+-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+-
+-                    // 应用设置
+-                    Text(
+-                        text = stringResource(R.string.applications_settings),
+-                        style = MaterialTheme.typography.titleMedium,
+-                        modifier = Modifier.padding(bottom = 8.dp)
+-                    )
+-
+                     Row(
+                         modifier = Modifier
+                             .fillMaxWidth()
+@@ -498,26 +432,31 @@ fun MainScreen(
+                     ) {
+                         Column(modifier = Modifier.weight(1f)) {
+                             Text(
+-                                text = stringResource(R.string.show_fab_button),
++                                text = stringResource(R.string.hide_icon_from_launcher),
+                                 style = MaterialTheme.typography.bodyLarge
+                             )
+                             Text(
+-                                text = if (showFab) stringResource(R.string.show)
+-                                       else stringResource(R.string.hide),
++                                text = if (hideIcon) stringResource(R.string.hide)
++                                       else stringResource(R.string.show),
+                                 style = MaterialTheme.typography.bodySmall,
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                             )
+                         }
+                         Switch(
+-                            checked = showFab,
++                            checked = hideIcon,
+                             onCheckedChange = { checked ->
+-                                showFab = checked
+-                                val fabFile = File(context.filesDir, "show_fab")
+-                                if (checked) {
+-                                    fabFile.createNewFile()
++                                hideIcon = checked
++                                val componentName = ComponentName(context, MainActivity::class.java)
++                                val newState = if (checked) {
++                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                                 } else {
+-                                    fabFile.delete()
++                                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                                 }
++                                context.packageManager.setComponentEnabledSetting(
++                                    componentName,
++                                    newState,
++                                    PackageManager.DONT_KILL_APP
++                                )
+                             }
+                         )
+                     }
+@@ -567,6 +506,15 @@ fun MainScreen(
+                         }
+                     }
+ 
++                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
++
++                    // 主题设置
++                    Text(
++                        text = stringResource(R.string.theme),
++                        style = MaterialTheme.typography.titleMedium,
++                        modifier = Modifier.padding(bottom = 8.dp)
++                    )
++
+                     Row(
+                         modifier = Modifier
+                             .fillMaxWidth()
+@@ -576,35 +524,91 @@ fun MainScreen(
+                     ) {
+                         Column(modifier = Modifier.weight(1f)) {
+                             Text(
+-                                text = stringResource(R.string.hide_icon_from_launcher),
++                                text = stringResource(R.string.follow_system_theme),
+                                 style = MaterialTheme.typography.bodyLarge
+                             )
+                             Text(
+-                                text = if (hideIcon) stringResource(R.string.hide)
+-                                       else stringResource(R.string.show),
++                                text = if (followSystemTheme) stringResource(R.string.enable)
++                                       else stringResource(R.string.disable),
+                                 style = MaterialTheme.typography.bodySmall,
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                             )
+                         }
+                         Switch(
+-                            checked = hideIcon,
++                            checked = followSystemTheme,
+                             onCheckedChange = { checked ->
+-                                hideIcon = checked
+-                                val componentName = ComponentName(context, MainActivity::class.java)
+-                                val newState = if (checked) {
+-                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED
++                                followSystemTheme = checked
++                                val themeFile = File(context.filesDir, "follow_system_theme")
++                                if (checked) {
++                                    themeFile.createNewFile()
+                                 } else {
+-                                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
++                                    themeFile.delete()
+                                 }
+-                                context.packageManager.setComponentEnabledSetting(
+-                                    componentName,
+-                                    newState,
+-                                    PackageManager.DONT_KILL_APP
+-                                )
++                                // 通知父组件更新主题
++                                onFollowSystemThemeChange(checked)
+                             }
+                         )
+                     }
+ 
++                    // 手动主题选择按钮（仅在不跟随系统主题时显示）
++                    if (!followSystemTheme) {
++                        Spacer(modifier = Modifier.height(16.dp))
++
++                        // 主题选择按钮 - 一排显示
++                        Row(
++                            modifier = Modifier.fillMaxWidth(),
++                            horizontalArrangement = Arrangement.spacedBy(8.dp)
++                        ) {
++                            ThemeButton(
++                                themeName = stringResource(R.string.theme_classic),
++                                themeId = "classic",
++                                isSelected = selectedTheme == "classic",
++                                backgroundColor = getThemeColors("classic").secondary,
++                                modifier = Modifier.weight(1f)
++                            ) {
++                                selectedTheme = "classic"
++                                File(context.filesDir, "selected_theme").writeText("classic")
++                                onThemeChange("classic")
++                            }
++
++                            ThemeButton(
++                                themeName = stringResource(R.string.theme_modern),
++                                themeId = "modern",
++                                isSelected = selectedTheme == "modern",
++                                backgroundColor = getThemeColors("modern").secondary,
++                                modifier = Modifier.weight(1f)
++                            ) {
++                                selectedTheme = "modern"
++                                File(context.filesDir, "selected_theme").writeText("modern")
++                                onThemeChange("modern")
++                            }
++
++                            ThemeButton(
++                                themeName = stringResource(R.string.theme_elegant),
++                                themeId = "elegant",
++                                isSelected = selectedTheme == "elegant",
++                                backgroundColor = getThemeColors("elegant").secondary,
++                                modifier = Modifier.weight(1f)
++                            ) {
++                                selectedTheme = "elegant"
++                                File(context.filesDir, "selected_theme").writeText("elegant")
++                                onThemeChange("elegant")
++                            }
++
++                            ThemeButton(
++                                themeName = stringResource(R.string.theme_vibrant),
++                                themeId = "vibrant",
++                                isSelected = selectedTheme == "vibrant",
++                                backgroundColor = getThemeColors("vibrant").secondary,
++                                modifier = Modifier.weight(1f)
++                            ) {
++                                selectedTheme = "vibrant"
++                                File(context.filesDir, "selected_theme").writeText("vibrant")
++                                onThemeChange("vibrant")
++                            }
++                        }
++                    }
++
+                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+ 
+                     // About 栏
+@@ -614,104 +618,116 @@ fun MainScreen(
+                         modifier = Modifier.padding(bottom = 8.dp)
+                     )
+ 
+-                    Column(
+-                        modifier = Modifier.fillMaxWidth(),
+-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+-                    ) {
+-                        val githubUrl = stringResource(R.string.github_url)
+-                        // 公司
+-                        Row(
+-                            modifier = Modifier.fillMaxWidth(),
+-                            horizontalArrangement = Arrangement.SpaceBetween
+-                        ) {
+-                            Text(
+-                                text = stringResource(R.string.company),
+-                                style = MaterialTheme.typography.bodyMedium,
+-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+-                            )
+-                            Text(
+-                                text = stringResource(R.string.quicker_studio),
+-                                style = MaterialTheme.typography.bodyMedium
+-                            )
+-                        }
+-
+-                        // 产品名称
+-                        Row(
+-                            modifier = Modifier.fillMaxWidth(),
+-                            horizontalArrangement = Arrangement.SpaceBetween
+-                        ) {
+-                            Text(
+-                                text = stringResource(R.string.product_name),
+-                                style = MaterialTheme.typography.bodyMedium,
+-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+-                            )
+-                            Text(
+-                                text = stringResource(R.string.aurora),
+-                                style = MaterialTheme.typography.bodyMedium
+-                            )
+-                        }
+-
+-                        // 版权
+-                        Row(
+-                            modifier = Modifier.fillMaxWidth(),
+-                            horizontalArrangement = Arrangement.SpaceBetween
+-                        ) {
+-                            Text(
+-                                text = stringResource(R.string.copyright),
+-                                style = MaterialTheme.typography.bodyMedium,
+-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+-                            )
+-                            Text(
+-                                text = stringResource(R.string.personal_ownership),
+-                                style = MaterialTheme.typography.bodyMedium
+-                            )
+-                        }
++                    Box(modifier = Modifier.fillMaxWidth()) {
++                        Icon(
++                            painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
++                            contentDescription = null,
++                            modifier = Modifier
++                                .align(Alignment.Center)
++                                .size(180.dp)
++                                .alpha(0.15f),
++                            tint = Color.Unspecified
++                        )
+ 
+-                        // 网站
+-                        Row(
++                        Column(
+                             modifier = Modifier.fillMaxWidth(),
+-                            horizontalArrangement = Arrangement.SpaceBetween,
+-                            verticalAlignment = Alignment.CenterVertically
++                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                         ) {
+-                            Text(
+-                                text = stringResource(R.string.website),
+-                                style = MaterialTheme.typography.bodyMedium,
+-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+-                            )
+-                            OutlinedButton(
+-                                onClick = {
+-                                    context.startActivity(
+-                                        Intent(
+-                                            Intent.ACTION_VIEW,
+-                                            Uri.parse(githubUrl)
+-                                        )
+-                                    )
+-                                },
+-                                colors = ButtonDefaults.outlinedButtonColors(
+-                                    containerColor = websiteButtonBackground,
+-                                    contentColor = websiteButtonContent
+-                                ),
+-                                border = androidx.compose.foundation.BorderStroke(
+-                                    1.dp,
+-                                    websiteButtonBackground
++                            val githubUrl = stringResource(R.string.github_url)
++                            // 公司
++                            Row(
++                                modifier = Modifier.fillMaxWidth(),
++                                horizontalArrangement = Arrangement.SpaceBetween
++                            ) {
++                                Text(
++                                    text = stringResource(R.string.company),
++                                    style = MaterialTheme.typography.bodyMedium,
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant
++                                )
++                                Text(
++                                    text = stringResource(R.string.quicker_studio),
++                                    style = MaterialTheme.typography.bodyMedium
+                                 )
++                            }
++
++                            // 产品名称
++                            Row(
++                                modifier = Modifier.fillMaxWidth(),
++                                horizontalArrangement = Arrangement.SpaceBetween
+                             ) {
+-                                Icon(
+-                                    painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+-                                    contentDescription = stringResource(R.string.website),
+-                                    modifier = Modifier.size(20.dp),
+-                                    tint = Color.Unspecified
++                                Text(
++                                    text = stringResource(R.string.product_name),
++                                    style = MaterialTheme.typography.bodyMedium,
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                 )
+-                                Spacer(modifier = Modifier.width(8.dp))
+                                 Text(
+                                     text = stringResource(R.string.aurora),
+-                                    style = MaterialTheme.typography.bodyLarge.copy(
+-                                        fontFamily = FontFamily(Font(R.font.mistral)),
+-                                        fontWeight = FontWeight.Normal,
+-                                        fontSize = 24.sp
+-                                    )
++                                    style = MaterialTheme.typography.bodyMedium
++                                )
++                            }
++
++                            // 版权
++                            Row(
++                                modifier = Modifier.fillMaxWidth(),
++                                horizontalArrangement = Arrangement.SpaceBetween
++                            ) {
++                                Text(
++                                    text = stringResource(R.string.copyright),
++                                    style = MaterialTheme.typography.bodyMedium,
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant
++                                )
++                                Text(
++                                    text = stringResource(R.string.personal_ownership),
++                                    style = MaterialTheme.typography.bodyMedium
+                                 )
+                             }
++
++                            // 网站
++                            Row(
++                                modifier = Modifier.fillMaxWidth(),
++                                horizontalArrangement = Arrangement.SpaceBetween,
++                                verticalAlignment = Alignment.CenterVertically
++                            ) {
++                                Text(
++                                    text = stringResource(R.string.website),
++                                    style = MaterialTheme.typography.bodyMedium,
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant
++                                )
++                                OutlinedButton(
++                                    onClick = {
++                                        context.startActivity(
++                                            Intent(
++                                                Intent.ACTION_VIEW,
++                                                Uri.parse(githubUrl)
++                                            )
++                                        )
++                                    },
++                                    colors = ButtonDefaults.outlinedButtonColors(
++                                        containerColor = websiteButtonBackground,
++                                        contentColor = websiteButtonContent
++                                    ),
++                                    border = androidx.compose.foundation.BorderStroke(
++                                        1.dp,
++                                        websiteButtonBackground
++                                    )
++                                ) {
++                                    Icon(
++                                        painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
++                                        contentDescription = stringResource(R.string.website),
++                                        modifier = Modifier.size(20.dp),
++                                        tint = Color.Unspecified
++                                    )
++                                    Spacer(modifier = Modifier.width(8.dp))
++                                    Text(
++                                        text = stringResource(R.string.aurora),
++                                        style = MaterialTheme.typography.bodyLarge.copy(
++                                            fontFamily = FontFamily(Font(R.font.mistral)),
++                                            fontWeight = FontWeight.Normal,
++                                            fontSize = 24.sp
++                                        )
++                                    )
++                                }
++                            }
+                         }
+                     }
+                 }
+@@ -794,63 +810,97 @@ fun MainScreen(
+                         .fillMaxSize()
+                         .background(MaterialTheme.colorScheme.background)
+                 ) {
+-                    // 视频网格
+-                    val gridState = rememberLazyGridState()
+-
+-                    // 监听滚动事件，滚动时隐藏本地视频库
+-                    LaunchedEffect(gridState) {
+-                        snapshotFlow { gridState.isScrollInProgress }
+-                            .collect { isScrolling ->
+-                                if (isScrolling) {
+-                                    isLocalLibraryVisible = false
+-                                }
++                    if (videoList.isEmpty()) {
++                        Box(
++                            modifier = Modifier
++                                .weight(1f)
++                                .fillMaxWidth(),
++                            contentAlignment = Alignment.Center
++                        ) {
++                            Column(
++                                horizontalAlignment = Alignment.CenterHorizontally,
++                                verticalArrangement = Arrangement.Center
++                            ) {
++                                Icon(
++                                    painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
++                                    contentDescription = null,
++                                    modifier = Modifier
++                                        .size(180.dp)
++                                        .alpha(0.12f),
++                                    tint = Color.Unspecified
++                                )
++                                Spacer(modifier = Modifier.height(12.dp))
++                                Text(
++                                    text = stringResource(R.string.aurora),
++                                    modifier = Modifier.offset(y = (-15).dp),
++                                    style = MaterialTheme.typography.headlineMedium.copy(
++                                        fontSize = 40.sp,
++                                        fontWeight = FontWeight.Normal,
++                                        fontFamily = FontFamily(Font(R.font.mistral))
++                                    ),
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
++                                )
+                             }
+-                    }
+-
+-                    LazyVerticalGrid(
+-                        state = gridState,
+-                        columns = GridCells.Fixed(2),
+-                        contentPadding = PaddingValues(16.dp),
+-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+-                        modifier = Modifier
+-                            .weight(1f)
+-                            .fillMaxWidth()
+-                    ) {
+-                        items(videoList) { video ->
+-                            VideoGridItem(
+-                                video = video,
+-                                isSelected = selectedVideoId == video.id,
+-                                themeColors = themeColors,
+-                                onVideoTouch = { videoId ->
+-                                    selectedVideoId = if (selectedVideoId == videoId) null else videoId
+-                                },
+-                                onVideoClick = { videoUri ->
+-                                    // 直接切换壁纸路径，不打开系统壁纸选择器
+-                                    videoUri?.let { uri ->
+-                                        saveVideoPath(context, uri.toString())
++                        }
++                    } else {
++                        // 视频网格
++                        val gridState = rememberLazyGridState()
++
++                        // 监听滚动事件，滚动时隐藏本地视频库
++                        LaunchedEffect(gridState) {
++                            snapshotFlow { gridState.isScrollInProgress }
++                                .collect { isScrolling ->
++                                    if (isScrolling) {
++                                        isLocalLibraryVisible = false
+                                     }
+-                                },
+-                                onVideoLongPress = { videoId ->
+-                                    // 长按删除历史记录
+-                                    val originalId = videoIdMap[videoId]
+-                                    originalId?.let { id ->
+-                                        WallpaperHistoryManager.deleteHistory(context, id)
+-                                        // 重新加载历史记录
+-                                        val history = WallpaperHistoryManager.loadHistory(context)
+-                                        val idMap = mutableMapOf<Int, String>()
+-                                        videoList = history.map { item ->
+-                                            val hashId = item.id.hashCode()
+-                                            idMap[hashId] = item.id
+-                                            VideoItem(
+-                                                id = hashId,
+-                                                uri = Uri.parse(item.videoUri)
+-                                            )
++                                }
++                        }
++
++                        LazyVerticalGrid(
++                            state = gridState,
++                            columns = GridCells.Fixed(2),
++                            contentPadding = PaddingValues(16.dp),
++                            horizontalArrangement = Arrangement.spacedBy(12.dp),
++                            verticalArrangement = Arrangement.spacedBy(12.dp),
++                            modifier = Modifier
++                                .weight(1f)
++                                .fillMaxWidth()
++                        ) {
++                            items(videoList) { video ->
++                                VideoGridItem(
++                                    video = video,
++                                    isSelected = selectedVideoId == video.id,
++                                    themeColors = themeColors,
++                                    onVideoTouch = { videoId ->
++                                        selectedVideoId = if (selectedVideoId == videoId) null else videoId
++                                    },
++                                    onVideoClick = { videoUri ->
++                                        // 直接切换壁纸路径，不打开系统壁纸选择器
++                                        videoUri?.let { uri ->
++                                            saveVideoPath(context, uri.toString())
++                                        }
++                                    },
++                                    onVideoLongPress = { videoId ->
++                                        // 长按删除历史记录
++                                        val originalId = videoIdMap[videoId]
++                                        originalId?.let { id ->
++                                            WallpaperHistoryManager.deleteHistory(context, id)
++                                            // 重新加载历史记录
++                                            val history = WallpaperHistoryManager.loadHistory(context)
++                                            val idMap = mutableMapOf<Int, String>()
++                                            videoList = history.map { item ->
++                                                val hashId = item.id.hashCode()
++                                                idMap[hashId] = item.id
++                                                VideoItem(
++                                                    id = hashId,
++                                                    uri = Uri.parse(item.videoUri)
++                                                )
++                                            }
++                                            videoIdMap = idMap
+                                         }
+-                                        videoIdMap = idMap
+                                     }
+-                                }
+-                            )
++                                )
++                            }
+                         }
+                     }
+ 
+@@ -909,6 +959,19 @@ fun VideoGridItem(
+ ) {
+     val context = LocalContext.current
+     var isPlaying by remember { mutableStateOf(false) }
++    var isDeleting by remember { mutableStateOf(false) }
++
++    // 删除动画状态
++    val deleteProgress by animateFloatAsState(
++        targetValue = if (isDeleting) 1f else 0f,
++        animationSpec = tween(durationMillis = 800, easing = LinearEasing),
++        finishedListener = {
++            if (isDeleting) {
++                onVideoLongPress(video.id)
++            }
++        }
++    )
++
+     val exoPlayer = remember {
+         ExoPlayer.Builder(context).build().apply {
+             video.uri?.let { uri ->
+@@ -940,10 +1003,20 @@ fun VideoGridItem(
+     Box(
+         modifier = Modifier
+             .aspectRatio(3f / 4f)
++            .graphicsLayer {
++                // 顺时针旋转
++                rotationZ = deleteProgress * 360f
++                // 缩放消失
++                scaleX = 1f - deleteProgress
++                scaleY = 1f - deleteProgress
++                alpha = 1f - deleteProgress
++            }
+             .clip(RoundedCornerShape(12.dp))
+             .border(
+                 width = 2.dp,
+-                color = themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary,
++                color = (themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary).copy(
++                    alpha = 1f - deleteProgress * 0.8f
++                ),
+                 shape = RoundedCornerShape(12.dp)
+             )
+             .background(MaterialTheme.colorScheme.surface)
+@@ -957,7 +1030,7 @@ fun VideoGridItem(
+                         onVideoClick(video.uri)
+                     },
+                     onLongPress = {
+-                        onVideoLongPress(video.id)
++                        isDeleting = true
+                     }
+                 )
+             }
+diff --git a/app/src/main/res/values-zh/strings.xml b/app/src/main/res/values-zh/strings.xml
+index 38cf13c..8b59d51 100644
+--- a/app/src/main/res/values-zh/strings.xml
++++ b/app/src/main/res/values-zh/strings.xml
+@@ -1,7 +1,43 @@
+ <resources>
++    <string name="app_name">Aurora</string>
++    <string name="about">关于</string>
++    <string name="add_path">添加视频文件路径</string>
++    <string name="apply">应用</string>
++    <string name="choose_video_file">选择视频文件</string>
++    <string name="add_video_file_path">添加视频路径</string>
++    <string name="cancel">取消</string>
++    <string name="wallpaper_settings">壁纸设置</string>
++    <string name="applications_settings">应用设置</string>
++    <string name="settings">设置</string>
++    <string name="play_video_with_sound">播放带声音的视频</string>
++    <string name="hide_icon_from_launcher">从启动器隐藏图标</string>
++    <string name="show_fab_button">显示添加视频按钮</string>
++    <string name="auto_hide_timer">自动隐藏倒计时</string>
++    <string name="hide">隐藏</string>
++    <string name="show">显示</string>
++    <string name="enable">开启</string>
++    <string name="disable">关闭</string>
++    <string name="version">版本</string>
++    <string name="version_name" translatable="false">1.0.0</string>
++    <string name="clear_desktop_icons">解锁跳转到全屏窗口</string>
++    <string name="theme">主题</string>
++    <string name="follow_system_theme">跟随系统主题</string>
++    <string name="theme_classic">经典</string>
++    <string name="theme_modern">现代</string>
++    <string name="theme_elegant">优雅</string>
++    <string name="theme_vibrant">活力</string>
++    <string name="company">公司</string>
++    <string name="product_name">Product Name</string>
++    <string name="copyright">版权</string>
++    <string name="website">官方网站</string>
++    <string name="quicker_studio">QuickerStudio</string>
++    <string name="aurora">Aurora</string>
++    <string name="personal_ownership">个人所有，禁止商用</string>
++    <string name="github_url" translatable="false">https://github.com/QuickerStudio/Aurora</string>
++    <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
++    <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
++    <string name="local_video_library">本地视频库</string>
+     <string name="swipe_right_to_load_more">向\n右\n滑\n动\n加\n载\n更\n多</string>
+     <string name="tap_video_to_set_wallpaper">点\n击\n视\n频\n卡\n片\n设\n为\n壁\n纸</string>
+     <string name="swipe_left_to_show_library">向左滑动展开视频库</string>
+-    <string name="show_fab_button">显示添加视频按钮</string>
+-    <string name="auto_hide_timer">自动隐藏倒计时</string>
+ </resources>
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index 4b20807..bda637d 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -19,7 +19,7 @@
+     <string name="disable">Disable</string>
+     <string name="version">Version</string>
+     <string name="version_name" translatable="false">1.0.0</string>
+-    <string name="clear_desktop_icons">解锁跳转到全屏窗口</string>
++    <string name="clear_desktop_icons">Jump to fullscreen on unlock</string>
+     <string name="theme">Theme</string>
+     <string name="follow_system_theme">Follow system theme</string>
+     <string name="theme_classic">Classic</string>
+@@ -29,15 +29,15 @@
+     <string name="company">Company</string>
+     <string name="product_name">Product Name</string>
+     <string name="copyright">Copyright</string>
+-    <string name="website">Website</string>
++    <string name="website">Official website</string>
+     <string name="quicker_studio">QuickerStudio</string>
+     <string name="aurora">Aurora</string>
+-    <string name="personal_ownership">Personal Ownership</string>
++    <string name="personal_ownership">Personal use only, no commercial use</string>
+     <string name="github_url" translatable="false">https://github.com/QuickerStudio/Aurora</string>
+     <!--preference-->
+     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
+     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
+-    <string name="local_video_library">本地视频库</string>
++    <string name="local_video_library">Local video library</string>
+     <string name="swipe_right_to_load_more">S\nw\ni\np\ne\n→\nL\no\na\nd</string>
+     <string name="tap_video_to_set_wallpaper">T\na\np\n→\nS\ne\nt\nW\na\nl\ll\np\na\np\ne\nr</string>
+     <string name="swipe_left_to_show_library">Swipe left to show library</string>

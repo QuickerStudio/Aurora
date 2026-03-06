@@ -1,0 +1,790 @@
+package ai.wallpaper.aurora
+
+import android.Manifest
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.launch
+import ai.wallpaper.aurora.service.UnlockWallpaperService
+import ai.wallpaper.aurora.service.VideoLiveWallpaperService
+import ai.wallpaper.aurora.ui.theme.AuroraTheme
+import ai.wallpaper.aurora.ui.theme.getThemeColors
+import java.io.File
+
+class MainActivity : ComponentActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            // 在 setContent 内部管理主题状态，这样可以响应状态变化
+            var followSystemTheme by remember {
+                mutableStateOf(File(filesDir, "follow_system_theme").exists())
+            }
+            var selectedTheme by remember {
+                val themeFile = File(filesDir, "selected_theme")
+                mutableStateOf(
+                    if (themeFile.exists()) themeFile.readText() else "classic"
+                )
+            }
+
+            AuroraTheme(
+                selectedTheme = selectedTheme,
+                followSystemTheme = followSystemTheme
+            ) {
+                MainScreen(
+                    initialFollowSystemTheme = followSystemTheme,
+                    initialSelectedTheme = selectedTheme,
+                    onThemeChange = { theme ->
+                        selectedTheme = theme
+                    },
+                    onFollowSystemThemeChange = { follow ->
+                        followSystemTheme = follow
+                    }
+                )
+            }
+        }
+    }
+}
+
+// 视频数据模型
+data class VideoItem(
+    val id: Int,
+    val uri: Uri?,
+    val thumbnailUri: Uri? = null
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    initialFollowSystemTheme: Boolean = false,
+    initialSelectedTheme: String = "classic",
+    onThemeChange: (String) -> Unit = {},
+    onFollowSystemThemeChange: (Boolean) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var videoPath by remember { mutableStateOf("") }
+
+    // 视频列表状态
+    var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
+    var selectedVideoId by remember { mutableStateOf<Int?>(null) }
+
+    // 设置状态
+    var playWithSound by remember {
+        mutableStateOf(File(context.filesDir, "unmute").exists())
+    }
+    var hideIcon by remember {
+        mutableStateOf(
+            context.packageManager.getComponentEnabledSetting(
+                ComponentName(context, MainActivity::class.java)
+            ) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        )
+    }
+    var clearDesktopIcons by remember {
+        mutableStateOf(File(context.filesDir, "clear_desktop_enabled").exists())
+    }
+    var followSystemTheme by remember {
+        mutableStateOf(initialFollowSystemTheme)
+    }
+    var selectedTheme by remember {
+        mutableStateOf(initialSelectedTheme)
+    }
+
+    // 获取当前主题颜色配置
+    val themeColors = if (!followSystemTheme) {
+        getThemeColors(selectedTheme)
+    } else {
+        null
+    }
+
+    // 权限请求
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            // 可以显示权限说明
+        }
+    }
+
+    // 视频选择器
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            saveVideoUri(context, it)
+            VideoLiveWallpaperService.setToWallPaper(context)
+            // 添加到视频列表
+            videoList = videoList + VideoItem(
+                id = videoList.size,
+                uri = it
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // 请求权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        // 加载示例视频数据（如果有保存的视频）
+        loadSavedVideos(context)?.let { savedUri ->
+            videoList = listOf(
+                VideoItem(0, savedUri),
+                VideoItem(1, savedUri),
+                VideoItem(2, savedUri),
+                VideoItem(3, savedUri),
+                VideoItem(4, savedUri),
+                VideoItem(5, savedUri)
+            )
+        }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = themeColors?.drawerBackground ?: MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings),
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp))
+
+                    // 壁纸设置
+                    Text(
+                        text = stringResource(R.string.wallpaper_settings),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.play_video_with_sound),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (playWithSound) stringResource(R.string.enable)
+                                       else stringResource(R.string.disable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = playWithSound,
+                            onCheckedChange = { checked ->
+                                playWithSound = checked
+                                val unmuteFile = File(context.filesDir, "unmute")
+                                if (checked) {
+                                    unmuteFile.createNewFile()
+                                    VideoLiveWallpaperService.unmuteMusic(context)
+                                } else {
+                                    unmuteFile.delete()
+                                    VideoLiveWallpaperService.muteMusic(context)
+                                }
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.clear_desktop_icons),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (clearDesktopIcons) stringResource(R.string.enable)
+                                       else stringResource(R.string.disable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = clearDesktopIcons,
+                            onCheckedChange = { checked ->
+                                clearDesktopIcons = checked
+                                val enableFile = File(context.filesDir, "clear_desktop_enabled")
+                                if (checked) {
+                                    enableFile.createNewFile()
+                                    UnlockWallpaperService.start(context)
+                                } else {
+                                    enableFile.delete()
+                                    UnlockWallpaperService.stop(context)
+                                }
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // 自定义路径
+                    Text(
+                        text = stringResource(R.string.add_video_file_path),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = videoPath,
+                            onValueChange = { videoPath = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.add_path)) }
+                        )
+                        IconButton(
+                            onClick = {
+                                if (videoPath.isNotBlank()) {
+                                    saveVideoPath(context, videoPath)
+                                    VideoLiveWallpaperService.setToWallPaper(context)
+                                    videoPath = ""
+                                    scope.launch { drawerState.close() }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.apply))
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // 主题设置
+                    Text(
+                        text = stringResource(R.string.theme),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.follow_system_theme),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (followSystemTheme) stringResource(R.string.enable)
+                                       else stringResource(R.string.disable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = followSystemTheme,
+                            onCheckedChange = { checked ->
+                                followSystemTheme = checked
+                                val themeFile = File(context.filesDir, "follow_system_theme")
+                                if (checked) {
+                                    themeFile.createNewFile()
+                                } else {
+                                    themeFile.delete()
+                                }
+                                // 通知父组件更新主题
+                                onFollowSystemThemeChange(checked)
+                            }
+                        )
+                    }
+
+                    // 手动主题选择按钮（仅在不跟随系统主题时显示）
+                    if (!followSystemTheme) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 主题选择按钮 - 一排显示
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_classic),
+                                themeId = "classic",
+                                isSelected = selectedTheme == "classic",
+                                backgroundColor = getThemeColors("classic").secondary,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                selectedTheme = "classic"
+                                File(context.filesDir, "selected_theme").writeText("classic")
+                                onThemeChange("classic")
+                            }
+
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_modern),
+                                themeId = "modern",
+                                isSelected = selectedTheme == "modern",
+                                backgroundColor = getThemeColors("modern").secondary,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                selectedTheme = "modern"
+                                File(context.filesDir, "selected_theme").writeText("modern")
+                                onThemeChange("modern")
+                            }
+
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_elegant),
+                                themeId = "elegant",
+                                isSelected = selectedTheme == "elegant",
+                                backgroundColor = getThemeColors("elegant").secondary,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                selectedTheme = "elegant"
+                                File(context.filesDir, "selected_theme").writeText("elegant")
+                                onThemeChange("elegant")
+                            }
+
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_vibrant),
+                                themeId = "vibrant",
+                                isSelected = selectedTheme == "vibrant",
+                                backgroundColor = getThemeColors("vibrant").secondary,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                selectedTheme = "vibrant"
+                                File(context.filesDir, "selected_theme").writeText("vibrant")
+                                onThemeChange("vibrant")
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // 应用设置
+                    Text(
+                        text = stringResource(R.string.applications_settings),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.hide_icon_from_launcher),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (hideIcon) stringResource(R.string.hide)
+                                       else stringResource(R.string.show),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = hideIcon,
+                            onCheckedChange = { checked ->
+                                hideIcon = checked
+                                val componentName = ComponentName(context, MainActivity::class.java)
+                                val newState = if (checked) {
+                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                                } else {
+                                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                                }
+                                context.packageManager.setComponentEnabledSetting(
+                                    componentName,
+                                    newState,
+                                    PackageManager.DONT_KILL_APP
+                                )
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // About 栏
+                    Text(
+                        text = stringResource(R.string.about),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // 公司
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.company),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = stringResource(R.string.quicker_studio),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        // 产品名称
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.product_name),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = stringResource(R.string.aurora),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        // 版权
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.copyright),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = stringResource(R.string.personal_ownership),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        // 网站
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.website),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = stringResource(R.string.github_url),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    ) {
+        Scaffold { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                // 自定义顶部标题栏
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(themeColors?.topBarBackground ?: MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 8.dp, vertical = 0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    // 菜单按钮
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = stringResource(R.string.settings),
+                            tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+
+                    // Aurora 图标
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                        contentDescription = "Aurora",
+                        modifier = Modifier.size(48.dp),
+                        tint = Color.Unspecified
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Aurora 文字标题
+                    Text(
+                        text = "Aurora",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = FontFamily(Font(R.font.mistral))
+                        ),
+                        color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                // 视频网格
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(videoList) { video ->
+                        VideoGridItem(
+                            video = video,
+                            isSelected = selectedVideoId == video.id,
+                            themeColors = themeColors,
+                            onVideoTouch = { videoId ->
+                                selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                            }
+                        )
+                    }
+                }
+
+                // 添加视频按钮
+                FloatingActionButton(
+                    onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp),
+                    containerColor = themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.choose_video_file),
+                        tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoGridItem(
+    video: VideoItem,
+    isSelected: Boolean,
+    themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
+    onVideoTouch: (Int) -> Unit
+) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            video.uri?.let { uri ->
+                setMediaItem(MediaItem.fromUri(uri))
+                prepare()
+                volume = 0f // 静音
+                repeatMode = Player.REPEAT_MODE_ONE
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    LaunchedEffect(isSelected) {
+        if (isSelected) {
+            exoPlayer.play()
+            isPlaying = true
+        } else {
+            exoPlayer.pause()
+            exoPlayer.seekTo(0)
+            isPlaying = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(3f / 4f)
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 2.dp,
+                color = themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .background(MaterialTheme.colorScheme.surface)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        onVideoTouch(video.id)
+                        tryAwaitRelease()
+                    }
+                )
+            }
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = false
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+private fun loadSavedVideos(context: Context): Uri? {
+    return try {
+        val file = File(context.filesDir, "video_live_wallpaper_file_path")
+        if (file.exists()) {
+            val path = file.readText()
+            Uri.parse(path)
+        } else {
+            null
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun saveVideoUri(context: Context, uri: Uri) {
+    // 持久化 URI 权限
+    try {
+        context.contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+        android.util.Log.d("MainActivity", "Persistable URI permission granted for: $uri")
+    } catch (e: Exception) {
+        android.util.Log.e("MainActivity", "Failed to take persistable URI permission", e)
+    }
+
+    // 保存 URI 路径
+    context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
+        it.write(uri.toString().toByteArray())
+    }
+    android.util.Log.d("MainActivity", "Video URI saved: $uri")
+}
+
+private fun saveVideoPath(context: Context, path: String) {
+    context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
+        it.write(path.toByteArray())
+    }
+}
+
+@Composable
+fun ThemeButton(
+    themeName: String,
+    themeId: String,
+    isSelected: Boolean,
+    backgroundColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(backgroundColor.copy(alpha = if (isSelected) 1f else 0.6f))
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = Color.White,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        onClick()
+                        tryAwaitRelease()
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = themeName,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}

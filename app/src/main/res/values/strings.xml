@@ -34,6 +34,17 @@
     <string name="aurora">Aurora</string>
     <string name="personal_ownership">Personal use only, no commercial use</string>
     <string name="github_url" translatable="false">https://github.com/QuickerStudio/Aurora</string>
+    <string name="releases_url" translatable="false">https://github.com/QuickerStudio/Aurora/releases</string>
+    <string name="issues_url" translatable="false">https://github.com/QuickerStudio/Aurora/issues</string>
+    <string name="issues_new_url" translatable="false">https://github.com/QuickerStudio/Aurora/issues/new</string>
+    <string name="check_update">Check update</string>
+    <string name="report_issue">Report issue</string>
+    <string name="feedback_title">Feedback title</string>
+    <string name="feedback_content">Feedback content</string>
+    <string name="submit">Submit</string>
+    <string name="user_guide">User guide</string>
+    <string name="user_guide_content">1. Tap the wallpaper button to select a local video.\n\n2. Tap a history card to set it as wallpaper.\n\n3. Long press a history card to delete it.\n\n4. Use the settings drawer to adjust theme, icon visibility, and other behaviors.</string>
+    <string name="close">Close</string>
     <!--preference-->
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
