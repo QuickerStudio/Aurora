@@ -185,7 +185,9 @@ fun MainScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
+            ModalDrawerSheet(
+                drawerContainerColor = themeColors?.drawerBackground ?: MaterialTheme.colorScheme.surface
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxHeight()
