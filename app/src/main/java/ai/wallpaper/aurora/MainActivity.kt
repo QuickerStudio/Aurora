@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -131,6 +132,7 @@ fun MainScreen(
     var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
     var localVideoOffset by remember { mutableStateOf(0) }
     var isLoadingLocalVideos by remember { mutableStateOf(false) }
+    var isLocalLibraryVisible by remember { mutableStateOf(true) }
 
     // 设置状态
     var showFab by remember {
@@ -172,6 +174,12 @@ fun MainScreen(
         0.3f
     )
     val websiteButtonContent = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+    val fabButtonBackground = lerp(
+        themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary,
+        Color.White,
+        0.3f
+    )
+    val fabButtonContent = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
 
     // 权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -751,11 +759,18 @@ fun MainScreen(
 
                     // FAB按钮 - 右侧
                     if (showFab) {
-                        IconButton(onClick = { videoPickerLauncher.launch(arrayOf("video/*")) }) {
+                        IconButton(
+                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                            modifier = Modifier
+                                .background(
+                                    color = fabButtonBackground,
+                                    shape = CircleShape
+                                )
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = stringResource(R.string.choose_video_file),
-                                tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                                tint = fabButtonContent
                             )
                         }
                     }
@@ -767,7 +782,20 @@ fun MainScreen(
                         .background(MaterialTheme.colorScheme.background)
                 ) {
                     // 视频网格
+                    val gridState = rememberLazyGridState()
+
+                    // 监听滚动事件，滚动时隐藏本地视频库
+                    LaunchedEffect(gridState) {
+                        snapshotFlow { gridState.isScrollInProgress }
+                            .collect { isScrolling ->
+                                if (isScrolling) {
+                                    isLocalLibraryVisible = false
+                                }
+                            }
+                    }
+
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Fixed(2),
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -799,6 +827,11 @@ fun MainScreen(
                         localVideos = localVideos,
                         themeColors = themeColors,
                         isLoading = isLoadingLocalVideos,
+                        autoHideTimer = autoHideTimer,
+                        isVisible = isLocalLibraryVisible,
+                        onVisibilityChange = { isVisible ->
+                            isLocalLibraryVisible = isVisible
+                        },
                         onLoadMore = {
                             scope.launch {
                                 if (!isLoadingLocalVideos) {
@@ -995,21 +1028,23 @@ fun LocalVideoLibrary(
     localVideos: List<LocalVideo>,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     isLoading: Boolean,
+    autoHideTimer: Int,
+    isVisible: Boolean,
+    onVisibilityChange: (Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onVideoClick: (LocalVideo) -> Unit
 ) {
     val listState = rememberLazyListState()
-    var isVisible by remember { mutableStateOf(true) }
     val offsetX by animateDpAsState(
         targetValue = if (isVisible) 0.dp else 400.dp,
         animationSpec = tween(durationMillis = 300)
     )
 
     // 自动隐藏倒计时
-    LaunchedEffect(isVisible) {
+    LaunchedEffect(isVisible, autoHideTimer) {
         if (isVisible) {
-            delay(10000) // 10秒后自动隐藏
-            isVisible = false
+            delay((autoHideTimer * 1000).toLong())
+            onVisibilityChange(false)
         }
     }
 
@@ -1098,11 +1133,11 @@ fun LocalVideoLibrary(
                         detectHorizontalDragGestures { _, dragAmount ->
                             // 向左拖拽展开视频库
                             if (dragAmount < -20) {
-                                isVisible = true
+                                onVisibilityChange(true)
                             }
                         }
                     }
-                    .clickable { isVisible = true },
+                    .clickable { onVisibilityChange(true) },
                 contentAlignment = Alignment.Center
             ) {
                 Row(
