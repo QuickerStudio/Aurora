@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -53,6 +56,8 @@ import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
 import ai.wallpaper.aurora.ui.theme.getThemeColors
 import ai.wallpaper.aurora.data.WallpaperHistoryManager
+import ai.wallpaper.aurora.utils.LocalVideoScanner
+import ai.wallpaper.aurora.utils.LocalVideo
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -113,6 +118,11 @@ fun MainScreen(
     // 视频列表状态 - 从历史记录加载
     var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
+
+    // 本地视频库状态
+    var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
+    var localVideoOffset by remember { mutableStateOf(0) }
+    var isLoadingLocalVideos by remember { mutableStateOf(false) }
 
     // 设置状态
     var playWithSound by remember {
@@ -191,6 +201,12 @@ fun MainScreen(
                 uri = Uri.parse(item.videoUri)
             )
         }
+
+        // 加载本地视频库
+        isLoadingLocalVideos = true
+        localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
+        localVideoOffset = 20
+        isLoadingLocalVideos = false
     }
 
     ModalNavigationDrawer(
@@ -637,45 +653,85 @@ fun MainScreen(
                     )
                 }
 
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.background)
                 ) {
-                // 视频网格
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(videoList) { video ->
-                        VideoGridItem(
-                            video = video,
-                            isSelected = selectedVideoId == video.id,
-                            themeColors = themeColors,
-                            onVideoTouch = { videoId ->
-                                selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                    // 视频网格
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(videoList) { video ->
+                                VideoGridItem(
+                                    video = video,
+                                    isSelected = selectedVideoId == video.id,
+                                    themeColors = themeColors,
+                                    onVideoTouch = { videoId ->
+                                        selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                                    }
+                                )
                             }
-                        )
-                    }
-                }
+                        }
 
-                // 添加视频按钮
-                FloatingActionButton(
-                    onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 32.dp),
-                    containerColor = themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.choose_video_file),
-                        tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+                        // 添加视频按钮
+                        FloatingActionButton(
+                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp),
+                            containerColor = themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(R.string.choose_video_file),
+                                tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+
+                    // 本地视频库横向滑动栏
+                    LocalVideoLibrary(
+                        localVideos = localVideos,
+                        themeColors = themeColors,
+                        isLoading = isLoadingLocalVideos,
+                        onLoadMore = {
+                            scope.launch {
+                                if (!isLoadingLocalVideos) {
+                                    isLoadingLocalVideos = true
+                                    val newVideos = LocalVideoScanner.scanVideos(
+                                        context,
+                                        offset = localVideoOffset,
+                                        limit = 20
+                                    )
+                                    localVideos = localVideos + newVideos
+                                    localVideoOffset += 20
+                                    isLoadingLocalVideos = false
+                                }
+                            }
+                        },
+                        onVideoClick = { video ->
+                            saveVideoUri(context, video.uri)
+                            VideoLiveWallpaperService.setToWallPaper(context)
+                            // 重新加载历史记录
+                            val history = WallpaperHistoryManager.loadHistory(context)
+                            videoList = history.map { item ->
+                                VideoItem(
+                                    id = item.id.hashCode(),
+                                    uri = Uri.parse(item.videoUri)
+                                )
+                            }
+                        }
                     )
-                }
                 }
             }
         }
@@ -832,5 +888,154 @@ fun ThemeButton(
             color = Color.White,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+@Composable
+fun LocalVideoLibrary(
+    localVideos: List<LocalVideo>,
+    themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
+    isLoading: Boolean,
+    onLoadMore: () -> Unit,
+    onVideoClick: (LocalVideo) -> Unit
+) {
+    val listState = rememberLazyListState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
+            .padding(vertical = 8.dp)
+    ) {
+        // 标题
+        Text(
+            text = stringResource(R.string.local_video_library),
+            style = MaterialTheme.typography.titleMedium,
+            color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        // 横向滑动视频列表
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(localVideos) { video ->
+                LocalVideoCard(
+                    video = video,
+                    themeColors = themeColors,
+                    onClick = { onVideoClick(video) }
+                )
+            }
+
+            // 加载更多指示器
+            if (localVideos.isNotEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .width(120.dp)
+                            .height(160.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = themeColors?.primary ?: MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text(
+                                text = "加载更多",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.clickable { onLoadMore() }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 检测滑动到末尾
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                .collect { lastVisibleIndex ->
+                    if (lastVisibleIndex != null && lastVisibleIndex >= localVideos.size - 2 && !isLoading) {
+                        onLoadMore()
+                    }
+                }
+        }
+    }
+}
+
+@Composable
+fun LocalVideoCard(
+    video: LocalVideo,
+    themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(video.uri))
+            prepare()
+            volume = 0f
+            repeatMode = Player.REPEAT_MODE_ONE
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .width(120.dp)
+            .height(160.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                width = 1.dp,
+                color = themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() }
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = false
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // 视频名称覆盖层
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(4.dp)
+        ) {
+            Text(
+                text = video.displayName,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White,
+                maxLines = 1,
+                fontSize = 10.sp
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        exoPlayer.play()
     }
 }

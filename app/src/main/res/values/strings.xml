@@ -35,4 +35,5 @@
     <!--preference-->
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
+    <string name="local_video_library">本地视频库</string>
 </resources>
