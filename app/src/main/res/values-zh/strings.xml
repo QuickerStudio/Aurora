@@ -11,7 +11,7 @@
     <string name="settings">设置</string>
     <string name="play_video_with_sound">播放带声音的视频</string>
     <string name="hide_icon_from_launcher">从启动器隐藏图标</string>
-    <string name="show_fab_button">显示添加视频按钮</string>
+    <string name="show_fab_button">壁纸按钮</string>
     <string name="auto_hide_timer">自动隐藏倒计时</string>
     <string name="hide">隐藏</string>
     <string name="show">显示</string>

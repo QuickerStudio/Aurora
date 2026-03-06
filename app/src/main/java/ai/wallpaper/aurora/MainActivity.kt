@@ -624,6 +624,7 @@ fun MainScreen(
                             contentDescription = null,
                             modifier = Modifier
                                 .align(Alignment.Center)
+                                .offset(y = (-30).dp)
                                 .size(180.dp)
                                 .alpha(0.15f),
                             tint = Color.Unspecified
@@ -1004,22 +1005,20 @@ fun VideoGridItem(
         modifier = Modifier
             .aspectRatio(3f / 4f)
             .graphicsLayer {
-                // 顺时针旋转
-                rotationZ = deleteProgress * 360f
-                // 缩放消失
-                scaleX = 1f - deleteProgress
-                scaleY = 1f - deleteProgress
-                alpha = 1f - deleteProgress
+                // 轻微缩小
+                val scale = 1f - deleteProgress * 0.2f
+                scaleX = scale
+                scaleY = scale
             }
             .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 2.dp,
                 color = (themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary).copy(
-                    alpha = 1f - deleteProgress * 0.8f
+                    alpha = 1f - deleteProgress
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 1f - deleteProgress * 0.5f))
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
