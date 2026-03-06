@@ -14,7 +14,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -30,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -48,6 +52,7 @@ import ai.wallpaper.aurora.service.UnlockWallpaperService
 import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
 import ai.wallpaper.aurora.ui.theme.getThemeColors
+import ai.wallpaper.aurora.data.WallpaperHistoryManager
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -105,7 +110,7 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     var videoPath by remember { mutableStateOf("") }
 
-    // 视频列表状态
+    // 视频列表状态 - 从历史记录加载
     var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
 
@@ -136,6 +141,12 @@ fun MainScreen(
     } else {
         null
     }
+    val websiteButtonBackground = lerp(
+        themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary,
+        Color.White,
+        0.3f
+    )
+    val websiteButtonContent = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
 
     // 权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -153,11 +164,14 @@ fun MainScreen(
         uri?.let {
             saveVideoUri(context, it)
             VideoLiveWallpaperService.setToWallPaper(context)
-            // 添加到视频列表
-            videoList = videoList + VideoItem(
-                id = videoList.size,
-                uri = it
-            )
+            // 重新加载历史记录
+            val history = WallpaperHistoryManager.loadHistory(context)
+            videoList = history.map { item ->
+                VideoItem(
+                    id = item.id.hashCode(),
+                    uri = Uri.parse(item.videoUri)
+                )
+            }
         }
     }
 
@@ -169,15 +183,12 @@ fun MainScreen(
             permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        // 加载示例视频数据（如果有保存的视频）
-        loadSavedVideos(context)?.let { savedUri ->
-            videoList = listOf(
-                VideoItem(0, savedUri),
-                VideoItem(1, savedUri),
-                VideoItem(2, savedUri),
-                VideoItem(3, savedUri),
-                VideoItem(4, savedUri),
-                VideoItem(5, savedUri)
+        // 从历史记录加载视频列表
+        val history = WallpaperHistoryManager.loadHistory(context)
+        videoList = history.map { item ->
+            VideoItem(
+                id = item.id.hashCode(),
+                uri = Uri.parse(item.videoUri)
             )
         }
     }
@@ -479,6 +490,7 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        val githubUrl = stringResource(R.string.github_url)
                         // 公司
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -530,18 +542,48 @@ fun MainScreen(
                         // 网站
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = stringResource(R.string.website),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = stringResource(R.string.github_url),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            OutlinedButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse(githubUrl)
+                                        )
+                                    )
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = websiteButtonBackground,
+                                    contentColor = websiteButtonContent
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    websiteButtonBackground
+                                )
+                            ) {
+                                Icon(
+                                    painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                                    contentDescription = stringResource(R.string.website),
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color.Unspecified
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.aurora),
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontFamily = FontFamily(Font(R.font.mistral)),
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 24.sp
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -742,6 +784,10 @@ private fun saveVideoUri(context: Context, uri: Uri) {
     context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
         it.write(uri.toString().toByteArray())
     }
+
+    // 添加到历史记录
+    WallpaperHistoryManager.addHistory(context, uri)
+
     android.util.Log.d("MainActivity", "Video URI saved: $uri")
 }
 
