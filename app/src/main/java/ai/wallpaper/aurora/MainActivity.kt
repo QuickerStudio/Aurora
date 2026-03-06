@@ -44,7 +44,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
-import ai.wallpaper.aurora.service.ClearDesktopService
+import ai.wallpaper.aurora.service.UnlockWallpaperService
 import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
 import java.io.File
@@ -93,6 +93,9 @@ fun MainScreen() {
     }
     var clearDesktopIcons by remember {
         mutableStateOf(File(context.filesDir, "clear_desktop_enabled").exists())
+    }
+    var followSystemTheme by remember {
+        mutableStateOf(File(context.filesDir, "follow_system_theme").exists())
     }
 
     // 权限请求
@@ -225,10 +228,10 @@ fun MainScreen() {
                                 val enableFile = File(context.filesDir, "clear_desktop_enabled")
                                 if (checked) {
                                     enableFile.createNewFile()
-                                    ClearDesktopService.start(context)
+                                    UnlockWallpaperService.start(context)
                                 } else {
                                     enableFile.delete()
-                                    ClearDesktopService.stop(context)
+                                    UnlockWallpaperService.stop(context)
                                 }
                             }
                         )
@@ -269,6 +272,48 @@ fun MainScreen() {
                         ) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.apply))
                         }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // 主题设置
+                    Text(
+                        text = stringResource(R.string.theme),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.follow_system_theme),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (followSystemTheme) stringResource(R.string.enable)
+                                       else stringResource(R.string.disable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = followSystemTheme,
+                            onCheckedChange = { checked ->
+                                followSystemTheme = checked
+                                val themeFile = File(context.filesDir, "follow_system_theme")
+                                if (checked) {
+                                    themeFile.createNewFile()
+                                } else {
+                                    themeFile.delete()
+                                }
+                            }
+                        )
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))

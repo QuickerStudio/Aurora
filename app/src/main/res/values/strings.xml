@@ -18,6 +18,8 @@
     <string name="version">Version</string>
     <string name="version_name" translatable="false">1.0.0</string>
     <string name="clear_desktop_icons">Clear Desktop Icons</string>
+    <string name="theme">Theme</string>
+    <string name="follow_system_theme">Follow system theme</string>
     <!--preference-->
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
