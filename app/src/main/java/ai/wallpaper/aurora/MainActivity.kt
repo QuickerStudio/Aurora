@@ -128,6 +128,8 @@ fun MainScreen(
     // 视频列表状态 - 从历史记录加载
     var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
+    // 保存 hashCode 到原始 ID 的映射
+    var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
 
     // 本地视频库状态
     var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
@@ -200,12 +202,16 @@ fun MainScreen(
             VideoLiveWallpaperService.setToWallPaper(context)
             // 重新加载历史记录
             val history = WallpaperHistoryManager.loadHistory(context)
+            val idMap = mutableMapOf<Int, String>()
             videoList = history.map { item ->
+                val hashId = item.id.hashCode()
+                idMap[hashId] = item.id
                 VideoItem(
-                    id = item.id.hashCode(),
+                    id = hashId,
                     uri = Uri.parse(item.videoUri)
                 )
             }
+            videoIdMap = idMap
         }
     }
 
@@ -219,12 +225,16 @@ fun MainScreen(
 
         // 从历史记录加载视频列表
         val history = WallpaperHistoryManager.loadHistory(context)
+        val idMap = mutableMapOf<Int, String>()
         videoList = history.map { item ->
+            val hashId = item.id.hashCode()
+            idMap[hashId] = item.id
             VideoItem(
-                id = item.id.hashCode(),
+                id = hashId,
                 uri = Uri.parse(item.videoUri)
             )
         }
+        videoIdMap = idMap
 
         // 加载本地视频库
         isLoadingLocalVideos = true
@@ -764,9 +774,10 @@ fun MainScreen(
                             onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
                             modifier = Modifier
                                 .offset(x = (-10).dp)
+                                .width(56.dp)
                                 .background(
                                     color = fabButtonBackground,
-                                    shape = CircleShape
+                                    shape = RoundedCornerShape(12.dp)
                                 )
                         ) {
                             Icon(
@@ -822,17 +833,21 @@ fun MainScreen(
                                 },
                                 onVideoLongPress = { videoId ->
                                     // 长按删除历史记录
-                                    val itemToDelete = videoList.find { it.id == videoId }
-                                    itemToDelete?.let {
-                                        WallpaperHistoryManager.deleteHistory(context, it.id.toString())
+                                    val originalId = videoIdMap[videoId]
+                                    originalId?.let { id ->
+                                        WallpaperHistoryManager.deleteHistory(context, id)
                                         // 重新加载历史记录
                                         val history = WallpaperHistoryManager.loadHistory(context)
+                                        val idMap = mutableMapOf<Int, String>()
                                         videoList = history.map { item ->
+                                            val hashId = item.id.hashCode()
+                                            idMap[hashId] = item.id
                                             VideoItem(
-                                                id = item.id.hashCode(),
+                                                id = hashId,
                                                 uri = Uri.parse(item.videoUri)
                                             )
                                         }
+                                        videoIdMap = idMap
                                     }
                                 }
                             )
