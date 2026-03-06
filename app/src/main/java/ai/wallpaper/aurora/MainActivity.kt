@@ -191,6 +191,7 @@ fun MainScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
                     Text(
