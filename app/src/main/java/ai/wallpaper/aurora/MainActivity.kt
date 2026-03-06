@@ -601,7 +601,7 @@ fun VideoGridItem(
             .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 2.dp,
-                color = MaterialTheme.colorScheme.secondary,
+                color = themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(12.dp)
             )
             .background(MaterialTheme.colorScheme.surface)
