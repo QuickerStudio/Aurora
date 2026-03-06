@@ -38,110 +38,110 @@ data class ThemeColors(
 )
 
 /**
- * Classic 主题 - 紫色与金色撞色
+ * Classic 主题 - 深紫罗兰 + 柔和金色（优雅经典）
  */
 val ClassicThemeColors = ThemeColors(
-    primary = Color(0xFF6200EE),
-    secondary = Color(0xFFFFD700),  // 金色
+    primary = Color(0xFF7C4DFF),        // 明亮紫罗兰
+    secondary = Color(0xFFFFD54F),      // 柔和金色
 
-    background = Color(0xFF1A0F2E),
-    surface = Color(0xFF2D1F4A),
+    background = Color(0xFF1A1625),     // 深紫色背景
+    surface = Color(0xFF2D2438),        // 紫色表面
 
-    topBarBackground = Color(0xFF2D1F4A),
-    topBarContent = Color(0xFFFFD700),
+    topBarBackground = Color(0xFF2D2438),
+    topBarContent = Color(0xFFFFD54F),  // 金色文字
 
-    drawerBackground = Color(0xFF1A0F2E),
-    drawerSurface = Color(0xFF2D1F4A),
+    drawerBackground = Color(0xFF1A1625),
+    drawerSurface = Color(0xFF2D2438),
 
-    cardBorder = Color(0xFFFFD700),
-    cardBackground = Color(0xFF2D1F4A),
+    cardBorder = Color(0xFFFFD54F),     // 金色边框
+    cardBackground = Color(0xFF2D2438),
 
-    buttonBackground = Color(0xFF6200EE),
+    buttonBackground = Color(0xFF7C4DFF),
     buttonContent = Color(0xFFFFFFFF),
 
-    onBackground = Color(0xFFE1E1E1),
-    onSurface = Color(0xFFE1E1E1),
+    onBackground = Color(0xFFE8E3F0),
+    onSurface = Color(0xFFE8E3F0),
     onPrimary = Color(0xFFFFFFFF)
 )
 
 /**
- * Modern 主题 - 青色与橙色撞色
+ * Modern 主题 - 青绿色 + 珊瑚橙（现代活力）
  */
 val ModernThemeColors = ThemeColors(
-    primary = Color(0xFF03DAC5),
-    secondary = Color(0xFFFF6B35),  // 橙色
+    primary = Color(0xFF26C6DA),        // 明亮青色
+    secondary = Color(0xFFFF7043),      // 珊瑚橙
 
-    background = Color(0xFF0F2A2A),
-    surface = Color(0xFF1F3D3D),
+    background = Color(0xFF0D1F1F),     // 深青色背景
+    surface = Color(0xFF1A3333),        // 青色表面
 
-    topBarBackground = Color(0xFF1F3D3D),
-    topBarContent = Color(0xFFFF6B35),
+    topBarBackground = Color(0xFF1A3333),
+    topBarContent = Color(0xFFFF7043),  // 橙色文字
 
-    drawerBackground = Color(0xFF0F2A2A),
-    drawerSurface = Color(0xFF1F3D3D),
+    drawerBackground = Color(0xFF0D1F1F),
+    drawerSurface = Color(0xFF1A3333),
 
-    cardBorder = Color(0xFFFF6B35),
-    cardBackground = Color(0xFF1F3D3D),
+    cardBorder = Color(0xFFFF7043),     // 橙色边框
+    cardBackground = Color(0xFF1A3333),
 
-    buttonBackground = Color(0xFF03DAC5),
+    buttonBackground = Color(0xFF26C6DA),
     buttonContent = Color(0xFF000000),
 
-    onBackground = Color(0xFFE1E1E1),
-    onSurface = Color(0xFFE1E1E1),
+    onBackground = Color(0xFFE0F2F1),
+    onSurface = Color(0xFFE0F2F1),
     onPrimary = Color(0xFF000000)
 )
 
 /**
- * Elegant 主题 - 紫罗兰与玫瑰金撞色
+ * Elegant 主题 - 薰衣草紫 + 玫瑰金（优雅浪漫）
  */
 val ElegantThemeColors = ThemeColors(
-    primary = Color(0xFFBB86FC),
-    secondary = Color(0xFFE6A8D7),  // 玫瑰金
+    primary = Color(0xFFB39DDB),        // 薰衣草紫
+    secondary = Color(0xFFF8BBD0),      // 柔和玫瑰粉
 
-    background = Color(0xFF251A30),
-    surface = Color(0xFF3A2F45),
+    background = Color(0xFF1F1A28),     // 深紫罗兰背景
+    surface = Color(0xFF332D3E),        // 紫色表面
 
-    topBarBackground = Color(0xFF3A2F45),
-    topBarContent = Color(0xFFE6A8D7),
+    topBarBackground = Color(0xFF332D3E),
+    topBarContent = Color(0xFFF8BBD0),  // 玫瑰粉文字
 
-    drawerBackground = Color(0xFF251A30),
-    drawerSurface = Color(0xFF3A2F45),
+    drawerBackground = Color(0xFF1F1A28),
+    drawerSurface = Color(0xFF332D3E),
 
-    cardBorder = Color(0xFFE6A8D7),
-    cardBackground = Color(0xFF3A2F45),
+    cardBorder = Color(0xFFF8BBD0),     // 玫瑰粉边框
+    cardBackground = Color(0xFF332D3E),
 
-    buttonBackground = Color(0xFFBB86FC),
+    buttonBackground = Color(0xFFB39DDB),
     buttonContent = Color(0xFF000000),
 
-    onBackground = Color(0xFFE1E1E1),
-    onSurface = Color(0xFFE1E1E1),
+    onBackground = Color(0xFFF3E5F5),
+    onSurface = Color(0xFFF3E5F5),
     onPrimary = Color(0xFF000000)
 )
 
 /**
- * Vibrant 主题 - 粉红与青绿撞色
+ * Vibrant 主题 - 玫瑰红 + 薄荷绿（活力清新）
  */
 val VibrantThemeColors = ThemeColors(
-    primary = Color(0xFFCF6679),
-    secondary = Color(0xFF00E5CC),  // 青绿色
+    primary = Color(0xFFEC407A),        // 玫瑰红
+    secondary = Color(0xFF80CBC4),      // 薄荷绿
 
-    background = Color(0xFF2A0F1A),
-    surface = Color(0xFF3F1F2F),
+    background = Color(0xFF1F0D14),     // 深玫瑰背景
+    surface = Color(0xFF331A24),        // 玫瑰色表面
 
-    topBarBackground = Color(0xFF3F1F2F),
-    topBarContent = Color(0xFF00E5CC),
+    topBarBackground = Color(0xFF331A24),
+    topBarContent = Color(0xFF80CBC4),  // 薄荷绿文字
 
-    drawerBackground = Color(0xFF2A0F1A),
-    drawerSurface = Color(0xFF3F1F2F),
+    drawerBackground = Color(0xFF1F0D14),
+    drawerSurface = Color(0xFF331A24),
 
-    cardBorder = Color(0xFF00E5CC),
-    cardBackground = Color(0xFF3F1F2F),
+    cardBorder = Color(0xFF80CBC4),     // 薄荷绿边框
+    cardBackground = Color(0xFF331A24),
 
-    buttonBackground = Color(0xFFCF6679),
+    buttonBackground = Color(0xFFEC407A),
     buttonContent = Color(0xFFFFFFFF),
 
-    onBackground = Color(0xFFE1E1E1),
-    onSurface = Color(0xFFE1E1E1),
+    onBackground = Color(0xFFFCE4EC),
+    onSurface = Color(0xFFFCE4EC),
     onPrimary = Color(0xFFFFFFFF)
 )
 
