@@ -123,6 +123,8 @@ fun MainScreen(
     var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
     var localVideoOffset by remember { mutableStateOf(0) }
     var isLoadingLocalVideos by remember { mutableStateOf(false) }
+    var isLocalLibraryVisible by remember { mutableStateOf(true) }
+    var autoHideTimer by remember { mutableStateOf(0) }
 
     // 设置状态
     var playWithSound by remember {
@@ -195,47 +197,16 @@ fun MainScreen(
 
         // 从历史记录加载视频列表
         val history = WallpaperHistoryManager.loadHistory(context)
-        videoList = if (history.size < 10) {
-            // 如果历史记录少于10个，添加测试数据用于诊断滑动问题
-            history.map { item ->
-                VideoItem(
-                    id = item.id.hashCode(),
-                    uri = Uri.parse(item.videoUri)
-                )
-            } + List(10 - history.size) { index ->
-                VideoItem(
-                    id = (2000 + index),
-                    uri = Uri.parse("content://test/history_video_${index}")
-                )
-            }
-        } else {
-            history.map { item ->
-                VideoItem(
-                    id = item.id.hashCode(),
-                    uri = Uri.parse(item.videoUri)
-                )
-            }
+        videoList = history.map { item ->
+            VideoItem(
+                id = item.id.hashCode(),
+                uri = Uri.parse(item.videoUri)
+            )
         }
 
         // 加载本地视频库
         isLoadingLocalVideos = true
-        val scannedVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
-
-        // 如果扫描到的视频少于5个，添加一些测试数据来验证UI
-        localVideos = if (scannedVideos.size < 5) {
-            scannedVideos + List(5 - scannedVideos.size) { index ->
-                LocalVideo(
-                    id = (1000 + index).toLong(),
-                    uri = Uri.parse("content://test/video_${index}"),
-                    displayName = "测试视频_${index + 1}.mp4",
-                    duration = 30000L,
-                    size = 1024000L,
-                    mimeType = "video/mp4"
-                )
-            }
-        } else {
-            scannedVideos
-        }
+        localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
         localVideoOffset = 20
         isLoadingLocalVideos = false
     }
@@ -720,28 +691,11 @@ fun MainScreen(
                             scope.launch {
                                 if (!isLoadingLocalVideos) {
                                     isLoadingLocalVideos = true
-                                    val scannedVideos = LocalVideoScanner.scanVideos(
+                                    val newVideos = LocalVideoScanner.scanVideos(
                                         context,
                                         offset = localVideoOffset,
                                         limit = 20
                                     )
-
-                                    // 如果扫描到的视频少于5个，添加测试数据
-                                    val newVideos = if (scannedVideos.size < 5) {
-                                        scannedVideos + List(5 - scannedVideos.size) { index ->
-                                            LocalVideo(
-                                                id = (localVideoOffset + index).toLong(),
-                                                uri = Uri.parse("content://test/video_${localVideoOffset + index}"),
-                                                displayName = "测试视频_${localVideoOffset + index + 1}.mp4",
-                                                duration = 30000L,
-                                                size = 1024000L,
-                                                mimeType = "video/mp4"
-                                            )
-                                        }
-                                    } else {
-                                        scannedVideos
-                                    }
-
                                     localVideos = localVideos + newVideos
                                     localVideoOffset += 20
                                     isLoadingLocalVideos = false
@@ -929,68 +883,106 @@ fun LocalVideoLibrary(
     onVideoClick: (LocalVideo) -> Unit
 ) {
     val listState = rememberLazyListState()
+    var isVisible by remember { mutableStateOf(true) }
+    val offsetY by animateDpAsState(
+        targetValue = if (isVisible) 0.dp else 200.dp,
+        animationSpec = tween(durationMillis = 300)
+    )
 
-    // 横向滑动视频列表
-    LazyRow(
-        state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    // 自动隐藏倒计时
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            delay(10000) // 10秒后自动隐藏
+            isVisible = false
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
+            .offset(y = offsetY)
     ) {
-        // 提示卡片 - 最左边
-        item {
-            Box(
-                modifier = Modifier
-                    .height(160.dp)
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.tap_video_to_set_wallpaper),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    fontSize = 11.sp
-                )
-            }
-        }
-
-        items(localVideos) { video ->
-            LocalVideoCard(
-                video = video,
-                themeColors = themeColors,
-                onClick = { onVideoClick(video) }
-            )
-        }
-
-        // 加载更多指示器
-        if (localVideos.isNotEmpty()) {
+        // 横向滑动视频列表
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
+        ) {
+            // 提示卡片 - 最左边
             item {
                 Box(
                     modifier = Modifier
                         .height(160.dp)
-                        .clickable { if (!isLoading) onLoadMore() }
                         .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            color = themeColors?.primary ?: MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.swipe_right_to_load_more),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            fontSize = 11.sp
-                        )
+                    Text(
+                        text = stringResource(R.string.tap_video_to_set_wallpaper),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            items(localVideos) { video ->
+                LocalVideoCard(
+                    video = video,
+                    themeColors = themeColors,
+                    onClick = { onVideoClick(video) }
+                )
+            }
+
+            // 加载更多指示器
+            if (localVideos.isNotEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .height(160.dp)
+                            .clickable { if (!isLoading) onLoadMore() }
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = themeColors?.primary ?: MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.swipe_right_to_load_more),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        // 拖拽按钮 - 右上角半圆形
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 16.dp)
+                .size(40.dp, 20.dp)
+                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                .background(themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary)
+                .clickable { isVisible = !isVisible },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isVisible) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                contentDescription = if (isVisible) "Hide" else "Show",
+                tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 
