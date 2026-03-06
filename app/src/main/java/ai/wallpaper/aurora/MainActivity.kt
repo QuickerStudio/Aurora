@@ -131,10 +131,11 @@ fun MainScreen(
     var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
     var localVideoOffset by remember { mutableStateOf(0) }
     var isLoadingLocalVideos by remember { mutableStateOf(false) }
-    var isLocalLibraryVisible by remember { mutableStateOf(true) }
-    var autoHideTimer by remember { mutableStateOf(0) }
 
     // 设置状态
+    var showFab by remember {
+        mutableStateOf(File(context.filesDir, "show_fab").exists())
+    }
     var playWithSound by remember {
         mutableStateOf(File(context.filesDir, "unmute").exists())
     }
@@ -474,6 +475,39 @@ fun MainScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
+                                text = stringResource(R.string.show_fab_button),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (showFab) stringResource(R.string.show)
+                                       else stringResource(R.string.hide),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showFab,
+                            onCheckedChange = { checked ->
+                                showFab = checked
+                                val fabFile = File(context.filesDir, "show_fab")
+                                if (checked) {
+                                    fabFile.createNewFile()
+                                } else {
+                                    fabFile.delete()
+                                }
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
                                 text = stringResource(R.string.hide_icon_from_launcher),
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -630,37 +664,52 @@ fun MainScreen(
                         .background(themeColors?.topBarBackground ?: MaterialTheme.colorScheme.surface)
                         .padding(horizontal = 8.dp, vertical = 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // 菜单按钮
-                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 菜单按钮
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = stringResource(R.string.settings),
+                                tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+
+                        // Aurora 图标
                         Icon(
-                            Icons.Default.Menu,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                            painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                            contentDescription = "Aurora",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.Unspecified
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Aurora 文字标题
+                        Text(
+                            text = "Aurora",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Normal,
+                                fontFamily = FontFamily(Font(R.font.mistral))
+                            ),
+                            color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
                         )
                     }
 
-                    // Aurora 图标
-                    Icon(
-                        painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
-                        contentDescription = "Aurora",
-                        modifier = Modifier.size(48.dp),
-                        tint = Color.Unspecified
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Aurora 文字标题
-                    Text(
-                        text = "Aurora",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Normal,
-                            fontFamily = FontFamily(Font(R.font.mistral))
-                        ),
-                        color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
-                    )
+                    // FAB按钮 - 右侧
+                    if (showFab) {
+                        IconButton(onClick = { videoPickerLauncher.launch(arrayOf("video/*")) }) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(R.string.choose_video_file),
+                                tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
                 }
 
                 Column(
