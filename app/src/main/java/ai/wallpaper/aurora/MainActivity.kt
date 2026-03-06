@@ -33,7 +33,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -317,24 +321,58 @@ fun MainScreen() {
             }
         }
     ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.settings))
-                        }
-                    }
-                )
-            }
-        ) { paddingValues ->
-            Box(
+        Scaffold { paddingValues ->
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(Color(0xFF1A1A1A))
             ) {
+                // 自定义顶部标题栏
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Transparent)
+                        .padding(horizontal = 8.dp, vertical = 0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    // 菜单按钮
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = stringResource(R.string.settings),
+                            tint = Color.White
+                        )
+                    }
+
+                    // Aurora 图标
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                        contentDescription = "Aurora",
+                        modifier = Modifier.size(48.dp),
+                        tint = Color.Unspecified
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Aurora 文字标题
+                    Text(
+                        text = "Aurora",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = FontFamily(Font(R.font.mistral))
+                        ),
+                        color = Color.White
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF1A1A1A))
+                ) {
                 // 视频网格
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -367,6 +405,7 @@ fun MainScreen() {
                         contentDescription = stringResource(R.string.choose_video_file),
                         tint = Color.White
                     )
+                }
                 }
             }
         }
