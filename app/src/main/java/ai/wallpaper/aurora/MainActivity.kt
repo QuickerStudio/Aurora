@@ -939,20 +939,23 @@ fun LocalVideoLibrary(
             item {
                 Box(
                     modifier = Modifier
-                        .width(120.dp)
-                        .height(160.dp),
+                        .height(160.dp)
+                        .clickable { if (!isLoading) onLoadMore() }
+                        .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            color = themeColors?.primary ?: MaterialTheme.colorScheme.primary
+                            color = themeColors?.primary ?: MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
                         )
                     } else {
                         Text(
-                            text = "加载更多",
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = stringResource(R.string.swipe_right_to_load_more),
+                            style = MaterialTheme.typography.bodySmall,
                             color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.clickable { onLoadMore() }
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            fontSize = 11.sp
                         )
                     }
                 }
