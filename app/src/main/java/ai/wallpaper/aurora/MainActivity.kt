@@ -195,11 +195,26 @@ fun MainScreen(
 
         // 从历史记录加载视频列表
         val history = WallpaperHistoryManager.loadHistory(context)
-        videoList = history.map { item ->
-            VideoItem(
-                id = item.id.hashCode(),
-                uri = Uri.parse(item.videoUri)
-            )
+        videoList = if (history.size < 10) {
+            // 如果历史记录少于10个，添加测试数据用于诊断滑动问题
+            history.map { item ->
+                VideoItem(
+                    id = item.id.hashCode(),
+                    uri = Uri.parse(item.videoUri)
+                )
+            } + List(10 - history.size) { index ->
+                VideoItem(
+                    id = (2000 + index),
+                    uri = Uri.parse("content://test/history_video_${index}")
+                )
+            }
+        } else {
+            history.map { item ->
+                VideoItem(
+                    id = item.id.hashCode(),
+                    uri = Uri.parse(item.videoUri)
+                )
+            }
         }
 
         // 加载本地视频库
