@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -762,6 +763,7 @@ fun MainScreen(
                         IconButton(
                             onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
                             modifier = Modifier
+                                .offset(x = (-10).dp)
                                 .background(
                                     color = fabButtonBackground,
                                     shape = CircleShape
@@ -816,6 +818,21 @@ fun MainScreen(
                                     // 直接切换壁纸路径，不打开系统壁纸选择器
                                     videoUri?.let { uri ->
                                         saveVideoPath(context, uri.toString())
+                                    }
+                                },
+                                onVideoLongPress = { videoId ->
+                                    // 长按删除历史记录
+                                    val itemToDelete = videoList.find { it.id == videoId }
+                                    itemToDelete?.let {
+                                        WallpaperHistoryManager.deleteHistory(context, it.id.toString())
+                                        // 重新加载历史记录
+                                        val history = WallpaperHistoryManager.loadHistory(context)
+                                        videoList = history.map { item ->
+                                            VideoItem(
+                                                id = item.id.hashCode(),
+                                                uri = Uri.parse(item.videoUri)
+                                            )
+                                        }
                                     }
                                 }
                             )
@@ -872,7 +889,8 @@ fun VideoGridItem(
     isSelected: Boolean,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     onVideoTouch: (Int) -> Unit,
-    onVideoClick: (Uri?) -> Unit = {}
+    onVideoClick: (Uri?) -> Unit = {},
+    onVideoLongPress: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
@@ -922,6 +940,9 @@ fun VideoGridItem(
                     },
                     onTap = {
                         onVideoClick(video.uri)
+                    },
+                    onLongPress = {
+                        onVideoLongPress(video.id)
                     }
                 )
             }

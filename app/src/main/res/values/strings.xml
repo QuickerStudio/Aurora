@@ -19,7 +19,7 @@
     <string name="disable">Disable</string>
     <string name="version">Version</string>
     <string name="version_name" translatable="false">1.0.0</string>
-    <string name="clear_desktop_icons">Clear Desktop Icons</string>
+    <string name="clear_desktop_icons">解锁跳转到全屏窗口</string>
     <string name="theme">Theme</string>
     <string name="follow_system_theme">Follow system theme</string>
     <string name="theme_classic">Classic</string>
