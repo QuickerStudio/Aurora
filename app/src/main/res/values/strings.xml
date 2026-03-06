@@ -24,6 +24,15 @@
     <string name="theme_modern">Modern</string>
     <string name="theme_elegant">Elegant</string>
     <string name="theme_vibrant">Vibrant</string>
+    <string name="about">About</string>
+    <string name="company">Company</string>
+    <string name="product_name">Product Name</string>
+    <string name="copyright">Copyright</string>
+    <string name="website">Website</string>
+    <string name="quicker_studio">QuickerStudio</string>
+    <string name="aurora">Aurora</string>
+    <string name="personal_ownership">Personal Ownership</string>
+    <string name="github_url" translatable="false">https://github.com/QuickerStudio/Aurora</string>
     <!--preference-->
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
