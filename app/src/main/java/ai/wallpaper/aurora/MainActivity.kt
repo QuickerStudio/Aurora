@@ -532,6 +532,7 @@ fun MainScreen(
                         VideoGridItem(
                             video = video,
                             isSelected = selectedVideoId == video.id,
+                            themeColors = themeColors,
                             onVideoTouch = { videoId ->
                                 selectedVideoId = if (selectedVideoId == videoId) null else videoId
                             }
@@ -563,6 +564,7 @@ fun MainScreen(
 fun VideoGridItem(
     video: VideoItem,
     isSelected: Boolean,
+    themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     onVideoTouch: (Int) -> Unit
 ) {
     val context = LocalContext.current
