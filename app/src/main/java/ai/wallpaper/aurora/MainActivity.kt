@@ -974,6 +974,22 @@ fun LocalVideoLibrary(
                 .size(40.dp, 20.dp)
                 .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
                 .background(themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            // 拖拽结束时切换状态
+                            isVisible = !isVisible
+                        },
+                        onVerticalDrag = { _, dragAmount ->
+                            // 向下拖拽（dragAmount > 0）隐藏，向上拖拽（dragAmount < 0）显示
+                            if (dragAmount > 10 && isVisible) {
+                                isVisible = false
+                            } else if (dragAmount < -10 && !isVisible) {
+                                isVisible = true
+                            }
+                        }
+                    )
+                }
                 .clickable { isVisible = !isVisible },
             contentAlignment = Alignment.Center
         ) {
