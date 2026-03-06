@@ -1009,7 +1009,7 @@ fun LocalVideoLibrary(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Swipe left to show",
+                        text = stringResource(R.string.swipe_left_to_show_library),
                         style = MaterialTheme.typography.bodySmall,
                         color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface
                     )

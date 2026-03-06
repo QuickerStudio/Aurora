@@ -37,5 +37,6 @@
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
     <string name="local_video_library">本地视频库</string>
     <string name="swipe_right_to_load_more">S\nw\ni\np\ne\n→\nL\no\na\nd</string>
-    <string name="tap_video_to_set_wallpaper">T\na\np\n→\nS\ne\nt\nW\na\nl\nl\np\na\np\ne\nr</string>
+    <string name="tap_video_to_set_wallpaper">T\na\np\n→\nS\ne\nt\nW\na\nl\ll\np\na\np\ne\nr</string>
+    <string name="swipe_left_to_show_library">Swipe left to show library</string>
 </resources>
