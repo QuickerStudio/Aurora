@@ -173,7 +173,14 @@ Copyright © 2026 QuickerStudio. All rights reserved.
 
 ## Acknowledgments
 
+## ✨ **cyunrei** ✨
+
+### [Video-Live-Wallpaper](https://github.com/cyunrei/Video-Live-Wallpaper)
+
+The original author provided the foundational codebase that made Aurora possible. This project started from that foundation and gradually evolved into a product we are truly satisfied with.
+
 Built with ❤️ using:
+
 - [Jetpack Compose](https://developer.android.com/jetpack/compose)
 - [Material Design 3](https://m3.material.io/)
 - [ExoPlayer](https://exoplayer.dev/)
