@@ -1,3 +1,4 @@
 <resources>
     <string name="swipe_right_to_load_more">向右滑动\n加载更多</string>
+    <string name="tap_video_to_set_wallpaper">点击视频卡片\n设为壁纸</string>
 </resources>

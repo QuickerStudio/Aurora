@@ -675,42 +675,23 @@ fun MainScreen(
                         .background(MaterialTheme.colorScheme.background)
                 ) {
                     // 视频网格
-                    Box(
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
                     ) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(videoList) { video ->
-                                VideoGridItem(
-                                    video = video,
-                                    isSelected = selectedVideoId == video.id,
-                                    themeColors = themeColors,
-                                    onVideoTouch = { videoId ->
-                                        selectedVideoId = if (selectedVideoId == videoId) null else videoId
-                                    }
-                                )
-                            }
-                        }
-
-                        // 添加视频按钮
-                        FloatingActionButton(
-                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp),
-                            containerColor = themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = stringResource(R.string.choose_video_file),
-                                tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+                        items(videoList) { video ->
+                            VideoGridItem(
+                                video = video,
+                                isSelected = selectedVideoId == video.id,
+                                themeColors = themeColors,
+                                onVideoTouch = { videoId ->
+                                    selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                                }
                             )
                         }
                     }
@@ -926,6 +907,24 @@ fun LocalVideoLibrary(
             .fillMaxWidth()
             .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
     ) {
+        // 提示卡片 - 最左边
+        item {
+            Box(
+                modifier = Modifier
+                    .height(160.dp)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.tap_video_to_set_wallpaper),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
         items(localVideos) { video ->
             LocalVideoCard(
                 video = video,
