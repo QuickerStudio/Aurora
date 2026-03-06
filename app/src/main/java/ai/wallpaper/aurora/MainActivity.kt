@@ -136,6 +136,10 @@ fun MainScreen(
     var showFab by remember {
         mutableStateOf(File(context.filesDir, "show_fab").exists())
     }
+    var autoHideTimer by remember {
+        val timerFile = File(context.filesDir, "auto_hide_timer")
+        mutableStateOf(if (timerFile.exists()) timerFile.readText().toIntOrNull() ?: 10 else 10)
+    }
     var playWithSound by remember {
         mutableStateOf(File(context.filesDir, "unmute").exists())
     }
@@ -497,6 +501,51 @@ fun MainScreen(
                                 }
                             }
                         )
+                    }
+
+                    // 自动隐藏倒计时设置
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.auto_hide_timer),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "${autoHideTimer}s",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = when (autoHideTimer) {
+                                5 -> 0f
+                                10 -> 1f
+                                15 -> 2f
+                                else -> 1f
+                            },
+                            onValueChange = { value ->
+                                autoHideTimer = when (value.toInt()) {
+                                    0 -> 5
+                                    1 -> 10
+                                    2 -> 15
+                                    else -> 10
+                                }
+                                File(context.filesDir, "auto_hide_timer").writeText(autoHideTimer.toString())
+                            },
+                            valueRange = 0f..2f,
+                            steps = 1,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("5s", style = MaterialTheme.typography.bodySmall)
+                            Text("10s", style = MaterialTheme.typography.bodySmall)
+                            Text("15s", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
 
                     Row(

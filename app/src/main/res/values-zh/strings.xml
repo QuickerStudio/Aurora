@@ -3,4 +3,5 @@
     <string name="tap_video_to_set_wallpaper">点\n击\n视\n频\n卡\n片\n设\n为\n壁\n纸</string>
     <string name="swipe_left_to_show_library">向左滑动展开视频库</string>
     <string name="show_fab_button">显示添加视频按钮</string>
+    <string name="auto_hide_timer">自动隐藏倒计时</string>
 </resources>

@@ -12,6 +12,7 @@
     <string name="play_video_with_sound">Play video with sound</string>
     <string name="hide_icon_from_launcher">Hide icon from launcher</string>
     <string name="show_fab_button">Show add video button</string>
+    <string name="auto_hide_timer">Auto-hide timer</string>
     <string name="hide">Hide</string>
     <string name="show">Show</string>
     <string name="enable">Enable</string>
