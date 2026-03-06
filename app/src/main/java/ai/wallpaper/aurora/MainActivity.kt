@@ -12,10 +12,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -29,6 +32,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,6 +55,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ai.wallpaper.aurora.service.UnlockWallpaperService
 import ai.wallpaper.aurora.service.VideoLiveWallpaperService
@@ -897,108 +903,104 @@ fun LocalVideoLibrary(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset(y = offsetY)
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
         // 横向滑动视频列表
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
+                .offset(y = offsetY)
         ) {
-            // 提示卡片 - 最左边
-            item {
-                Box(
-                    modifier = Modifier
-                        .height(160.dp)
-                        .padding(horizontal = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.tap_video_to_set_wallpaper),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            items(localVideos) { video ->
-                LocalVideoCard(
-                    video = video,
-                    themeColors = themeColors,
-                    onClick = { onVideoClick(video) }
-                )
-            }
-
-            // 加载更多指示器
-            if (localVideos.isNotEmpty()) {
+            LazyRow(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
+            ) {
+                // 提示卡片 - 最左边
                 item {
                     Box(
                         modifier = Modifier
                             .height(160.dp)
-                            .clickable { if (!isLoading) onLoadMore() }
                             .padding(horizontal = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = themeColors?.primary ?: MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.swipe_right_to_load_more),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                fontSize = 11.sp
-                            )
+                        Text(
+                            text = stringResource(R.string.tap_video_to_set_wallpaper),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                items(localVideos) { video ->
+                    LocalVideoCard(
+                        video = video,
+                        themeColors = themeColors,
+                        onClick = { onVideoClick(video) }
+                    )
+                }
+
+                // 加载更多指示器
+                if (localVideos.isNotEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .height(160.dp)
+                                .clickable { if (!isLoading) onLoadMore() }
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = themeColors?.primary ?: MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.swipe_right_to_load_more),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 拖拽按钮 - 右上角半圆形
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(end = 16.dp)
-                .size(40.dp, 20.dp)
-                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                .background(themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary)
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onDragEnd = {
-                            // 拖拽结束时切换状态
-                            isVisible = !isVisible
-                        },
-                        onVerticalDrag = { _, dragAmount ->
-                            // 向下拖拽（dragAmount > 0）隐藏，向上拖拽（dragAmount < 0）显示
-                            if (dragAmount > 10 && isVisible) {
-                                isVisible = false
-                            } else if (dragAmount < -10 && !isVisible) {
+        // 滑动展开区域 - 当视频库隐藏时显示
+        if (!isVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .background(themeColors?.surface?.copy(alpha = 0.8f) ?: MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures { _, dragAmount ->
+                            // 向上拖拽展开视频库
+                            if (dragAmount < -20) {
                                 isVisible = true
                             }
                         }
-                    )
-                }
-                .clickable { isVisible = !isVisible },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isVisible) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                contentDescription = if (isVisible) "Hide" else "Show",
-                tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(16.dp)
-            )
+                    }
+                    .clickable { isVisible = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Show library",
+                    tint = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 
