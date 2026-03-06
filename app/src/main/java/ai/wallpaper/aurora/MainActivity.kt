@@ -97,6 +97,12 @@ fun MainScreen() {
     var followSystemTheme by remember {
         mutableStateOf(File(context.filesDir, "follow_system_theme").exists())
     }
+    var selectedTheme by remember {
+        val themeFile = File(context.filesDir, "selected_theme")
+        mutableStateOf(
+            if (themeFile.exists()) themeFile.readText() else "classic"
+        )
+    }
 
     // 权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -314,6 +320,71 @@ fun MainScreen() {
                                 }
                             }
                         )
+                    }
+
+                    // 手动主题选择按钮（仅在不跟随系统主题时显示）
+                    if (!followSystemTheme) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 主题选择网格
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ThemeButton(
+                                    themeName = stringResource(R.string.theme_classic),
+                                    themeId = "classic",
+                                    isSelected = selectedTheme == "classic",
+                                    backgroundColor = Color(0xFF6200EE),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    selectedTheme = "classic"
+                                    File(context.filesDir, "selected_theme").writeText("classic")
+                                }
+
+                                ThemeButton(
+                                    themeName = stringResource(R.string.theme_modern),
+                                    themeId = "modern",
+                                    isSelected = selectedTheme == "modern",
+                                    backgroundColor = Color(0xFF03DAC5),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    selectedTheme = "modern"
+                                    File(context.filesDir, "selected_theme").writeText("modern")
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ThemeButton(
+                                    themeName = stringResource(R.string.theme_elegant),
+                                    themeId = "elegant",
+                                    isSelected = selectedTheme == "elegant",
+                                    backgroundColor = Color(0xFFBB86FC),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    selectedTheme = "elegant"
+                                    File(context.filesDir, "selected_theme").writeText("elegant")
+                                }
+
+                                ThemeButton(
+                                    themeName = stringResource(R.string.theme_vibrant),
+                                    themeId = "vibrant",
+                                    isSelected = selectedTheme == "vibrant",
+                                    backgroundColor = Color(0xFFCF6679),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    selectedTheme = "vibrant"
+                                    File(context.filesDir, "selected_theme").writeText("vibrant")
+                                }
+                            }
+                        }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -564,5 +635,43 @@ private fun saveVideoUri(context: Context, uri: Uri) {
 private fun saveVideoPath(context: Context, path: String) {
     context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
         it.write(path.toByteArray())
+    }
+}
+
+@Composable
+fun ThemeButton(
+    themeName: String,
+    themeId: String,
+    isSelected: Boolean,
+    backgroundColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(80.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor.copy(alpha = if (isSelected) 1f else 0.6f))
+            .border(
+                width = if (isSelected) 3.dp else 0.dp,
+                color = Color.White,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        onClick()
+                        tryAwaitRelease()
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = themeName,
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
