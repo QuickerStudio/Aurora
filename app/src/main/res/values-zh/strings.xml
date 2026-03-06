@@ -1,7 +1,43 @@
 <resources>
+    <string name="app_name">Aurora</string>
+    <string name="about">关于</string>
+    <string name="add_path">添加视频文件路径</string>
+    <string name="apply">应用</string>
+    <string name="choose_video_file">选择视频文件</string>
+    <string name="add_video_file_path">添加视频路径</string>
+    <string name="cancel">取消</string>
+    <string name="wallpaper_settings">壁纸设置</string>
+    <string name="applications_settings">应用设置</string>
+    <string name="settings">设置</string>
+    <string name="play_video_with_sound">播放带声音的视频</string>
+    <string name="hide_icon_from_launcher">从启动器隐藏图标</string>
+    <string name="show_fab_button">显示添加视频按钮</string>
+    <string name="auto_hide_timer">自动隐藏倒计时</string>
+    <string name="hide">隐藏</string>
+    <string name="show">显示</string>
+    <string name="enable">开启</string>
+    <string name="disable">关闭</string>
+    <string name="version">版本</string>
+    <string name="version_name" translatable="false">1.0.0</string>
+    <string name="clear_desktop_icons">解锁跳转到全屏窗口</string>
+    <string name="theme">主题</string>
+    <string name="follow_system_theme">跟随系统主题</string>
+    <string name="theme_classic">经典</string>
+    <string name="theme_modern">现代</string>
+    <string name="theme_elegant">优雅</string>
+    <string name="theme_vibrant">活力</string>
+    <string name="company">公司</string>
+    <string name="product_name">Product Name</string>
+    <string name="copyright">版权</string>
+    <string name="website">官方网站</string>
+    <string name="quicker_studio">QuickerStudio</string>
+    <string name="aurora">Aurora</string>
+    <string name="personal_ownership">个人所有，禁止商用</string>
+    <string name="github_url" translatable="false">https://github.com/QuickerStudio/Aurora</string>
+    <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
+    <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>
+    <string name="local_video_library">本地视频库</string>
     <string name="swipe_right_to_load_more">向\n右\n滑\n动\n加\n载\n更\n多</string>
     <string name="tap_video_to_set_wallpaper">点\n击\n视\n频\n卡\n片\n设\n为\n壁\n纸</string>
     <string name="swipe_left_to_show_library">向左滑动展开视频库</string>
-    <string name="show_fab_button">显示添加视频按钮</string>
-    <string name="auto_hide_timer">自动隐藏倒计时</string>
 </resources>
