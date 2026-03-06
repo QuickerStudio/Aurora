@@ -1,28 +1,371 @@
 package ai.wallpaper.aurora
 
+import android.Manifest
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.launch
+import ai.wallpaper.aurora.service.ClearDesktopService
+import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
+import java.io.File
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             AuroraTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                MainScreen()
+            }
+        }
+    }
+}
+
+// 视频数据模型
+data class VideoItem(
+    val id: Int,
+    val uri: Uri?,
+    val thumbnailUri: Uri? = null
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen() {
+    val context = LocalContext.current
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var videoPath by remember { mutableStateOf("") }
+
+    // 视频列表状态
+    var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
+    var selectedVideoId by remember { mutableStateOf<Int?>(null) }
+
+    // 设置状态
+    var playWithSound by remember {
+        mutableStateOf(File(context.filesDir, "unmute").exists())
+    }
+    var hideIcon by remember {
+        mutableStateOf(
+            context.packageManager.getComponentEnabledSetting(
+                ComponentName(context, MainActivity::class.java)
+            ) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        )
+    }
+    var clearDesktopIcons by remember {
+        mutableStateOf(File(context.filesDir, "clear_desktop_enabled").exists())
+    }
+
+    // 权限请求
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            // 可以显示权限说明
+        }
+    }
+
+    // 视频选择器
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            saveVideoUri(context, it)
+            VideoLiveWallpaperService.setToWallPaper(context)
+            // 添加到视频列表
+            videoList = videoList + VideoItem(
+                id = videoList.size,
+                uri = it
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // 请求权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        // 加载示例视频数据（如果有保存的视频）
+        loadSavedVideos(context)?.let { savedUri ->
+            videoList = listOf(
+                VideoItem(0, savedUri),
+                VideoItem(1, savedUri),
+                VideoItem(2, savedUri),
+                VideoItem(3, savedUri),
+                VideoItem(4, savedUri),
+                VideoItem(5, savedUri)
+            )
+        }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings),
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp))
+
+                    // 壁纸设置
+                    Text(
+                        text = stringResource(R.string.wallpaper_settings),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.play_video_with_sound),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (playWithSound) stringResource(R.string.enable)
+                                       else stringResource(R.string.disable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = playWithSound,
+                            onCheckedChange = { checked ->
+                                playWithSound = checked
+                                val unmuteFile = File(context.filesDir, "unmute")
+                                if (checked) {
+                                    unmuteFile.createNewFile()
+                                    VideoLiveWallpaperService.unmuteMusic(context)
+                                } else {
+                                    unmuteFile.delete()
+                                    VideoLiveWallpaperService.muteMusic(context)
+                                }
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.clear_desktop_icons),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (clearDesktopIcons) stringResource(R.string.enable)
+                                       else stringResource(R.string.disable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = clearDesktopIcons,
+                            onCheckedChange = { checked ->
+                                clearDesktopIcons = checked
+                                val enableFile = File(context.filesDir, "clear_desktop_enabled")
+                                if (checked) {
+                                    enableFile.createNewFile()
+                                    ClearDesktopService.start(context)
+                                } else {
+                                    enableFile.delete()
+                                    ClearDesktopService.stop(context)
+                                }
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // 自定义路径
+                    Text(
+                        text = stringResource(R.string.add_video_file_path),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = videoPath,
+                            onValueChange = { videoPath = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.add_path)) }
+                        )
+                        IconButton(
+                            onClick = {
+                                if (videoPath.isNotBlank()) {
+                                    saveVideoPath(context, videoPath)
+                                    VideoLiveWallpaperService.setToWallPaper(context)
+                                    videoPath = ""
+                                    scope.launch { drawerState.close() }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.apply))
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                    // 应用设置
+                    Text(
+                        text = stringResource(R.string.applications_settings),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.hide_icon_from_launcher),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (hideIcon) stringResource(R.string.hide)
+                                       else stringResource(R.string.show),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = hideIcon,
+                            onCheckedChange = { checked ->
+                                hideIcon = checked
+                                val componentName = ComponentName(context, MainActivity::class.java)
+                                val newState = if (checked) {
+                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                                } else {
+                                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                                }
+                                context.packageManager.setComponentEnabledSetting(
+                                    componentName,
+                                    newState,
+                                    PackageManager.DONT_KILL_APP
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.settings))
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color(0xFF1A1A1A))
+            ) {
+                // 视频网格
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(videoList) { video ->
+                        VideoGridItem(
+                            video = video,
+                            isSelected = selectedVideoId == video.id,
+                            onVideoTouch = { videoId ->
+                                selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                            }
+                        )
+                    }
+                }
+
+                // 添加视频按钮
+                FloatingActionButton(
+                    onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp),
+                    containerColor = Color(0xFFB39DDB)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.choose_video_file),
+                        tint = Color.White
                     )
                 }
             }
@@ -31,17 +374,111 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun VideoGridItem(
+    video: VideoItem,
+    isSelected: Boolean,
+    onVideoTouch: (Int) -> Unit
+) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            video.uri?.let { uri ->
+                setMediaItem(MediaItem.fromUri(uri))
+                prepare()
+                volume = 0f // 静音
+                repeatMode = Player.REPEAT_MODE_ONE
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    LaunchedEffect(isSelected) {
+        if (isSelected) {
+            exoPlayer.play()
+            isPlaying = true
+        } else {
+            exoPlayer.pause()
+            exoPlayer.seekTo(0)
+            isPlaying = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(3f / 4f)
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 2.dp,
+                color = Color(0xFFB39DDB), // 淡紫色边框
+                shape = RoundedCornerShape(12.dp)
+            )
+            .background(Color(0xFF2A2A2A))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        onVideoTouch(video.id)
+                        tryAwaitRelease()
+                    }
+                )
+            }
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = false
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AuroraTheme {
-        Greeting("Android")
+private fun loadSavedVideos(context: Context): Uri? {
+    return try {
+        val file = File(context.filesDir, "video_live_wallpaper_file_path")
+        if (file.exists()) {
+            val path = file.readText()
+            Uri.parse(path)
+        } else {
+            null
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun saveVideoUri(context: Context, uri: Uri) {
+    // 持久化 URI 权限
+    try {
+        context.contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+        android.util.Log.d("MainActivity", "Persistable URI permission granted for: $uri")
+    } catch (e: Exception) {
+        android.util.Log.e("MainActivity", "Failed to take persistable URI permission", e)
+    }
+
+    // 保存 URI 路径
+    context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
+        it.write(uri.toString().toByteArray())
+    }
+    android.util.Log.d("MainActivity", "Video URI saved: $uri")
+}
+
+private fun saveVideoPath(context: Context, path: String) {
+    context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
+        it.write(path.toByteArray())
     }
 }
