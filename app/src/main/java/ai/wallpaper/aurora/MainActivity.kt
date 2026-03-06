@@ -47,6 +47,7 @@ import kotlinx.coroutines.launch
 import ai.wallpaper.aurora.service.UnlockWallpaperService
 import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
+import ai.wallpaper.aurora.ui.theme.getThemeColors
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -127,6 +128,13 @@ fun MainScreen(
     }
     var selectedTheme by remember {
         mutableStateOf(initialSelectedTheme)
+    }
+
+    // 获取当前主题颜色配置
+    val themeColors = if (!followSystemTheme) {
+        getThemeColors(selectedTheme)
+    } else {
+        null
     }
 
     // 权限请求
@@ -362,7 +370,7 @@ fun MainScreen(
                                 themeName = stringResource(R.string.theme_classic),
                                 themeId = "classic",
                                 isSelected = selectedTheme == "classic",
-                                backgroundColor = Color(0xFF6200EE),
+                                backgroundColor = getThemeColors("classic").secondary,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 selectedTheme = "classic"
@@ -374,7 +382,7 @@ fun MainScreen(
                                 themeName = stringResource(R.string.theme_modern),
                                 themeId = "modern",
                                 isSelected = selectedTheme == "modern",
-                                backgroundColor = Color(0xFF03DAC5),
+                                backgroundColor = getThemeColors("modern").secondary,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 selectedTheme = "modern"
@@ -386,7 +394,7 @@ fun MainScreen(
                                 themeName = stringResource(R.string.theme_elegant),
                                 themeId = "elegant",
                                 isSelected = selectedTheme == "elegant",
-                                backgroundColor = Color(0xFFBB86FC),
+                                backgroundColor = getThemeColors("elegant").secondary,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 selectedTheme = "elegant"
@@ -398,7 +406,7 @@ fun MainScreen(
                                 themeName = stringResource(R.string.theme_vibrant),
                                 themeId = "vibrant",
                                 isSelected = selectedTheme == "vibrant",
-                                backgroundColor = Color(0xFFCF6679),
+                                backgroundColor = getThemeColors("vibrant").secondary,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 selectedTheme = "vibrant"
@@ -469,7 +477,7 @@ fun MainScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Transparent)
+                        .background(themeColors?.topBarBackground ?: MaterialTheme.colorScheme.surface)
                         .padding(horizontal = 8.dp, vertical = 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
@@ -479,7 +487,7 @@ fun MainScreen(
                         Icon(
                             Icons.Default.Menu,
                             contentDescription = stringResource(R.string.settings),
-                            tint = MaterialTheme.colorScheme.onBackground
+                            tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -501,7 +509,7 @@ fun MainScreen(
                             fontWeight = FontWeight.Normal,
                             fontFamily = FontFamily(Font(R.font.mistral))
                         ),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -535,12 +543,12 @@ fun MainScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 32.dp),
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = stringResource(R.string.choose_video_file),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 }
@@ -591,7 +599,7 @@ fun VideoGridItem(
             .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 2.dp,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.secondary,
                 shape = RoundedCornerShape(12.dp)
             )
             .background(MaterialTheme.colorScheme.surface)

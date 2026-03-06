@@ -54,33 +54,16 @@ fun AuroraTheme(
         }
         // 手动选择主题
         else -> {
-            when (selectedTheme) {
-                "classic" -> darkColorScheme(
-                    primary = ClassicPrimary,
-                    secondary = ClassicSecondary,
-                    background = ClassicBackground,
-                    surface = ClassicSurface
-                )
-                "modern" -> darkColorScheme(
-                    primary = ModernPrimary,
-                    secondary = ModernSecondary,
-                    background = ModernBackground,
-                    surface = ModernSurface
-                )
-                "elegant" -> darkColorScheme(
-                    primary = ElegantPrimary,
-                    secondary = ElegantSecondary,
-                    background = ElegantBackground,
-                    surface = ElegantSurface
-                )
-                "vibrant" -> darkColorScheme(
-                    primary = VibrantPrimary,
-                    secondary = VibrantSecondary,
-                    background = VibrantBackground,
-                    surface = VibrantSurface
-                )
-                else -> if (darkTheme) DarkColorScheme else LightColorScheme
-            }
+            val themeColors = getThemeColors(selectedTheme ?: "classic")
+            darkColorScheme(
+                primary = themeColors.primary,
+                secondary = themeColors.secondary,
+                background = themeColors.background,
+                surface = themeColors.surface,
+                onBackground = themeColors.onBackground,
+                onSurface = themeColors.onSurface,
+                onPrimary = themeColors.onPrimary
+            )
         }
     }
 
