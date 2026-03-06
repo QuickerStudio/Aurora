@@ -17,6 +17,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
@@ -890,8 +892,8 @@ fun LocalVideoLibrary(
 ) {
     val listState = rememberLazyListState()
     var isVisible by remember { mutableStateOf(true) }
-    val offsetY by animateDpAsState(
-        targetValue = if (isVisible) 0.dp else 200.dp,
+    val offsetX by animateDpAsState(
+        targetValue = if (isVisible) 0.dp else 400.dp,
         animationSpec = tween(durationMillis = 300)
     )
 
@@ -903,21 +905,21 @@ fun LocalVideoLibrary(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
+    // 只在显示或动画中时占用完整空间，隐藏后只显示滑动区域
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (isVisible || offsetX < 400.dp) 176.dp else 40.dp)
     ) {
-        // 横向滑动视频列表
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset(y = offsetY)
-        ) {
+        if (isVisible || offsetX < 400.dp) {
+            // 横向滑动视频列表
             LazyRow(
                 state = listState,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset(x = offsetX)
                     .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
             ) {
                 // 提示卡片 - 最左边
@@ -976,16 +978,17 @@ fun LocalVideoLibrary(
             }
         }
 
-        // 滑动展开区域 - 当视频库隐藏时显示
+        // 滑动展开区域 - 始终显示在底部
         if (!isVisible) {
             Box(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .height(40.dp)
-                    .background(themeColors?.surface?.copy(alpha = 0.8f) ?: MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
+                    .background(themeColors?.surface?.copy(alpha = 0.9f) ?: MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
                     .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            // 向上拖拽展开视频库
+                        detectHorizontalDragGestures { _, dragAmount ->
+                            // 向左拖拽展开视频库
                             if (dragAmount < -20) {
                                 isVisible = true
                             }
@@ -994,12 +997,23 @@ fun LocalVideoLibrary(
                     .clickable { isVisible = true },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Show library",
-                    tint = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
-                )
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowLeft,
+                        contentDescription = "Show library",
+                        tint = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Swipe left to show",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }
