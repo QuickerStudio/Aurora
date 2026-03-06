@@ -204,7 +204,23 @@ fun MainScreen(
 
         // 加载本地视频库
         isLoadingLocalVideos = true
-        localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
+        val scannedVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
+
+        // 如果扫描到的视频少于5个，添加一些测试数据来验证UI
+        localVideos = if (scannedVideos.size < 5) {
+            scannedVideos + List(5 - scannedVideos.size) { index ->
+                LocalVideo(
+                    id = (1000 + index).toLong(),
+                    uri = Uri.parse("content://test/video_${index}"),
+                    displayName = "测试视频_${index + 1}.mp4",
+                    duration = 30000L,
+                    size = 1024000L,
+                    mimeType = "video/mp4"
+                )
+            }
+        } else {
+            scannedVideos
+        }
         localVideoOffset = 20
         isLoadingLocalVideos = false
     }
@@ -901,70 +917,57 @@ fun LocalVideoLibrary(
 ) {
     val listState = rememberLazyListState()
 
-    Column(
+    // 横向滑动视频列表
+    LazyRow(
+        state = listState,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
             .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
-            .padding(vertical = 8.dp)
     ) {
-        // 标题
-        Text(
-            text = stringResource(R.string.local_video_library),
-            style = MaterialTheme.typography.titleMedium,
-            color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        items(localVideos) { video ->
+            LocalVideoCard(
+                video = video,
+                themeColors = themeColors,
+                onClick = { onVideoClick(video) }
+            )
+        }
 
-        // 横向滑动视频列表
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(localVideos) { video ->
-                LocalVideoCard(
-                    video = video,
-                    themeColors = themeColors,
-                    onClick = { onVideoClick(video) }
-                )
-            }
-
-            // 加载更多指示器
-            if (localVideos.isNotEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .width(120.dp)
-                            .height(160.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = themeColors?.primary ?: MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Text(
-                                text = "加载更多",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.clickable { onLoadMore() }
-                            )
-                        }
+        // 加载更多指示器
+        if (localVideos.isNotEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = themeColors?.primary ?: MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Text(
+                            text = "加载更多",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.clickable { onLoadMore() }
+                        )
                     }
                 }
             }
         }
+    }
 
-        // 检测滑动到末尾
-        LaunchedEffect(listState) {
-            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                .collect { lastVisibleIndex ->
-                    if (lastVisibleIndex != null && lastVisibleIndex >= localVideos.size - 2 && !isLoading) {
-                        onLoadMore()
-                    }
+    // 检测滑动到末尾
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastVisibleIndex ->
+                if (lastVisibleIndex != null && lastVisibleIndex >= localVideos.size - 2 && !isLoading) {
+                    onLoadMore()
                 }
-        }
+            }
     }
 }
 
