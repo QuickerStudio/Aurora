@@ -705,11 +705,28 @@ fun MainScreen(
                             scope.launch {
                                 if (!isLoadingLocalVideos) {
                                     isLoadingLocalVideos = true
-                                    val newVideos = LocalVideoScanner.scanVideos(
+                                    val scannedVideos = LocalVideoScanner.scanVideos(
                                         context,
                                         offset = localVideoOffset,
                                         limit = 20
                                     )
+
+                                    // 如果扫描到的视频少于5个，添加测试数据
+                                    val newVideos = if (scannedVideos.size < 5) {
+                                        scannedVideos + List(5 - scannedVideos.size) { index ->
+                                            LocalVideo(
+                                                id = (localVideoOffset + index).toLong(),
+                                                uri = Uri.parse("content://test/video_${localVideoOffset + index}"),
+                                                displayName = "测试视频_${localVideoOffset + index + 1}.mp4",
+                                                duration = 30000L,
+                                                size = 1024000L,
+                                                mimeType = "video/mp4"
+                                            )
+                                        }
+                                    } else {
+                                        scannedVideos
+                                    }
+
                                     localVideos = localVideos + newVideos
                                     localVideoOffset += 20
                                     isLoadingLocalVideos = false
