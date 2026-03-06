@@ -36,18 +36,52 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun AuroraTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    selectedTheme: String? = null,
+    followSystemTheme: Boolean = true,
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        // 如果跟随系统主题
+        followSystemTheme -> {
+            if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val context = LocalContext.current
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } else {
+                if (darkTheme) DarkColorScheme else LightColorScheme
+            }
         }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        // 手动选择主题
+        else -> {
+            when (selectedTheme) {
+                "classic" -> darkColorScheme(
+                    primary = ClassicPrimary,
+                    secondary = ClassicSecondary,
+                    background = ClassicBackground,
+                    surface = ClassicSurface
+                )
+                "modern" -> darkColorScheme(
+                    primary = ModernPrimary,
+                    secondary = ModernSecondary,
+                    background = ModernBackground,
+                    surface = ModernSurface
+                )
+                "elegant" -> darkColorScheme(
+                    primary = ElegantPrimary,
+                    secondary = ElegantSecondary,
+                    background = ElegantBackground,
+                    surface = ElegantSurface
+                )
+                "vibrant" -> darkColorScheme(
+                    primary = VibrantPrimary,
+                    secondary = VibrantSecondary,
+                    background = VibrantBackground,
+                    surface = VibrantSurface
+                )
+                else -> if (darkTheme) DarkColorScheme else LightColorScheme
+            }
+        }
     }
 
     MaterialTheme(

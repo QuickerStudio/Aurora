@@ -54,8 +54,31 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AuroraTheme {
-                MainScreen()
+            // 在 setContent 内部管理主题状态，这样可以响应状态变化
+            var followSystemTheme by remember {
+                mutableStateOf(File(filesDir, "follow_system_theme").exists())
+            }
+            var selectedTheme by remember {
+                val themeFile = File(filesDir, "selected_theme")
+                mutableStateOf(
+                    if (themeFile.exists()) themeFile.readText() else "classic"
+                )
+            }
+
+            AuroraTheme(
+                selectedTheme = selectedTheme,
+                followSystemTheme = followSystemTheme
+            ) {
+                MainScreen(
+                    initialFollowSystemTheme = followSystemTheme,
+                    initialSelectedTheme = selectedTheme,
+                    onThemeChange = { theme ->
+                        selectedTheme = theme
+                    },
+                    onFollowSystemThemeChange = { follow ->
+                        followSystemTheme = follow
+                    }
+                )
             }
         }
     }
@@ -70,7 +93,12 @@ data class VideoItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    initialFollowSystemTheme: Boolean = false,
+    initialSelectedTheme: String = "classic",
+    onThemeChange: (String) -> Unit = {},
+    onFollowSystemThemeChange: (Boolean) -> Unit = {}
+) {
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -95,13 +123,10 @@ fun MainScreen() {
         mutableStateOf(File(context.filesDir, "clear_desktop_enabled").exists())
     }
     var followSystemTheme by remember {
-        mutableStateOf(File(context.filesDir, "follow_system_theme").exists())
+        mutableStateOf(initialFollowSystemTheme)
     }
     var selectedTheme by remember {
-        val themeFile = File(context.filesDir, "selected_theme")
-        mutableStateOf(
-            if (themeFile.exists()) themeFile.readText() else "classic"
-        )
+        mutableStateOf(initialSelectedTheme)
     }
 
     // 权限请求
@@ -318,6 +343,8 @@ fun MainScreen() {
                                 } else {
                                     themeFile.delete()
                                 }
+                                // 通知父组件更新主题
+                                onFollowSystemThemeChange(checked)
                             }
                         )
                     }
@@ -326,63 +353,57 @@ fun MainScreen() {
                     if (!followSystemTheme) {
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // 主题选择网格
-                        Column(
+                        // 主题选择按钮 - 一排显示
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_classic),
+                                themeId = "classic",
+                                isSelected = selectedTheme == "classic",
+                                backgroundColor = Color(0xFF6200EE),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                ThemeButton(
-                                    themeName = stringResource(R.string.theme_classic),
-                                    themeId = "classic",
-                                    isSelected = selectedTheme == "classic",
-                                    backgroundColor = Color(0xFF6200EE),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    selectedTheme = "classic"
-                                    File(context.filesDir, "selected_theme").writeText("classic")
-                                }
-
-                                ThemeButton(
-                                    themeName = stringResource(R.string.theme_modern),
-                                    themeId = "modern",
-                                    isSelected = selectedTheme == "modern",
-                                    backgroundColor = Color(0xFF03DAC5),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    selectedTheme = "modern"
-                                    File(context.filesDir, "selected_theme").writeText("modern")
-                                }
+                                selectedTheme = "classic"
+                                File(context.filesDir, "selected_theme").writeText("classic")
+                                onThemeChange("classic")
                             }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_modern),
+                                themeId = "modern",
+                                isSelected = selectedTheme == "modern",
+                                backgroundColor = Color(0xFF03DAC5),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                ThemeButton(
-                                    themeName = stringResource(R.string.theme_elegant),
-                                    themeId = "elegant",
-                                    isSelected = selectedTheme == "elegant",
-                                    backgroundColor = Color(0xFFBB86FC),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    selectedTheme = "elegant"
-                                    File(context.filesDir, "selected_theme").writeText("elegant")
-                                }
+                                selectedTheme = "modern"
+                                File(context.filesDir, "selected_theme").writeText("modern")
+                                onThemeChange("modern")
+                            }
 
-                                ThemeButton(
-                                    themeName = stringResource(R.string.theme_vibrant),
-                                    themeId = "vibrant",
-                                    isSelected = selectedTheme == "vibrant",
-                                    backgroundColor = Color(0xFFCF6679),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    selectedTheme = "vibrant"
-                                    File(context.filesDir, "selected_theme").writeText("vibrant")
-                                }
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_elegant),
+                                themeId = "elegant",
+                                isSelected = selectedTheme == "elegant",
+                                backgroundColor = Color(0xFFBB86FC),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                selectedTheme = "elegant"
+                                File(context.filesDir, "selected_theme").writeText("elegant")
+                                onThemeChange("elegant")
+                            }
+
+                            ThemeButton(
+                                themeName = stringResource(R.string.theme_vibrant),
+                                themeId = "vibrant",
+                                isSelected = selectedTheme == "vibrant",
+                                backgroundColor = Color(0xFFCF6679),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                selectedTheme = "vibrant"
+                                File(context.filesDir, "selected_theme").writeText("vibrant")
+                                onThemeChange("vibrant")
                             }
                         }
                     }
@@ -442,7 +463,7 @@ fun MainScreen() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(Color(0xFF1A1A1A))
+                    .background(MaterialTheme.colorScheme.background)
             ) {
                 // 自定义顶部标题栏
                 Row(
@@ -458,7 +479,7 @@ fun MainScreen() {
                         Icon(
                             Icons.Default.Menu,
                             contentDescription = stringResource(R.string.settings),
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
 
@@ -480,14 +501,14 @@ fun MainScreen() {
                             fontWeight = FontWeight.Normal,
                             fontFamily = FontFamily(Font(R.font.mistral))
                         ),
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF1A1A1A))
+                        .background(MaterialTheme.colorScheme.background)
                 ) {
                 // 视频网格
                 LazyVerticalGrid(
@@ -514,12 +535,12 @@ fun MainScreen() {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 32.dp),
-                    containerColor = Color(0xFFB39DDB)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = stringResource(R.string.choose_video_file),
-                        tint = Color.White
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 }
@@ -570,10 +591,10 @@ fun VideoGridItem(
             .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 2.dp,
-                color = Color(0xFFB39DDB), // 淡紫色边框
+                color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(12.dp)
             )
-            .background(Color(0xFF2A2A2A))
+            .background(MaterialTheme.colorScheme.surface)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
@@ -588,6 +609,7 @@ fun VideoGridItem(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
+                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     layoutParams = android.view.ViewGroup.LayoutParams(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -649,13 +671,13 @@ fun ThemeButton(
 ) {
     Box(
         modifier = modifier
-            .height(80.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .height(48.dp)
+            .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor.copy(alpha = if (isSelected) 1f else 0.6f))
             .border(
-                width = if (isSelected) 3.dp else 0.dp,
+                width = if (isSelected) 2.dp else 0.dp,
                 color = Color.White,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(8.dp)
             )
             .pointerInput(Unit) {
                 detectTapGestures(
@@ -669,7 +691,7 @@ fun ThemeButton(
     ) {
         Text(
             text = themeName,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
