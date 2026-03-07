@@ -309,9 +309,11 @@ fun MainScreen(
     ) { uri: Uri? ->
         uri?.let {
             saveVideoUri(context, it)
-            if (!isAuroraWallpaperActive(context)) {
-                VideoLiveWallpaperService.setToWallPaper(context)
-            }
+
+            // 重要：每次选择视频都需要重新应用壁纸
+            // 系统会重启壁纸服务，读取新的视频路径
+            VideoLiveWallpaperService.setToWallPaper(context)
+
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
             videoIdMap = idMap
@@ -425,9 +427,10 @@ fun MainScreen(
                             onClick = {
                                 if (videoPath.isNotBlank()) {
                                     saveVideoPath(context, videoPath)
-                                    if (!isAuroraWallpaperActive(context)) {
-                                        VideoLiveWallpaperService.setToWallPaper(context)
-                                    }
+
+                                    // 重要：每次输入新路径都需要重新应用壁纸
+                                    VideoLiveWallpaperService.setToWallPaper(context)
+
                                     videoPath = ""
                                     scope.launch { drawerState.close() }
                                 }
@@ -1132,9 +1135,10 @@ fun MainScreen(
                                     onVideoClick = { videoUri ->
                                         videoUri?.let { uri ->
                                             saveVideoPath(context, uri.toString())
-                                            if (!isAuroraWallpaperActive(context)) {
-                                                VideoLiveWallpaperService.setToWallPaper(context)
-                                            }
+
+                                            // 重要：每次切换视频都需要重新应用壁纸
+                                            // 系统会重启壁纸服务，读取新的视频路径
+                                            VideoLiveWallpaperService.setToWallPaper(context)
                                         }
                                     },
                                     onVideoLongPress = { videoId ->
@@ -1182,10 +1186,11 @@ fun MainScreen(
                         },
                         onVideoClick = { video ->
                             saveVideoUri(context, video.uri)
-                            // 触发壁纸设置流程
-                            if (!isAuroraWallpaperActive(context)) {
-                                VideoLiveWallpaperService.setToWallPaper(context)
-                            }
+
+                            // 重要：由于采用文件通信，每次切换视频都需要重新应用壁纸
+                            // 系统会重启壁纸服务，服务读取新的视频路径
+                            VideoLiveWallpaperService.setToWallPaper(context)
+
                             // 刷新历史列表
                             isLocalLibraryVisible = true
                             val history = WallpaperHistoryManager.loadHistory(context)
