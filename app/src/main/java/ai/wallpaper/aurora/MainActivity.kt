@@ -1359,7 +1359,8 @@ fun MainScreen(
                                         HistoryPreviewProcessor.PreviewRequest(
                                             id = video.id,
                                             uri = video.uri,
-                                            hasPreview = video.previewBitmap != null
+                                            hasPreview = video.previewBitmap != null,
+                                            mediaType = video.mediaType
                                         )
                                     },
                                     displayMode = historyCardDisplayMode,

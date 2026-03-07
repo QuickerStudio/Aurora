@@ -2,6 +2,7 @@ package ai.wallpaper.aurora.utils
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -62,7 +63,14 @@ class HistoryPreviewProcessor(
 
                     val uri = next.uri ?: continue
                     try {
-                        val thumbnail = VideoThumbnailCache.getThumbnail(appContext, uri, displayMode)
+                        val thumbnail = if (next.mediaType == MediaType.IMAGE) {
+                            // 图片：直接加载并缩放
+                            loadImageThumbnail(uri)
+                        } else {
+                            // 视频：使用VideoThumbnailCache
+                            VideoThumbnailCache.getThumbnail(appContext, uri, displayMode)
+                        }
+
                         if (thumbnail != null) {
                             launch(mainDispatcher) {
                                 onPreviewReady(next.id, uri, thumbnail)
@@ -91,6 +99,36 @@ class HistoryPreviewProcessor(
         }
     }
 
+    private fun loadImageThumbnail(uri: Uri): Bitmap? {
+        return try {
+            appContext.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                BitmapFactory.decodeStream(inputStream, null, options)
+                inputStream.close()
+
+                // 计算缩放比例
+                val targetWidth = 240
+                val targetHeight = 320
+                val widthScale = options.outWidth.toFloat() / targetWidth
+                val heightScale = options.outHeight.toFloat() / targetHeight
+                val scale = maxOf(widthScale, heightScale, 1f).toInt()
+
+                // 重新打开流并解码
+                appContext.contentResolver.openInputStream(uri)?.use { stream ->
+                    val decodeOptions = BitmapFactory.Options().apply {
+                        inSampleSize = scale
+                    }
+                    BitmapFactory.decodeStream(stream, null, decodeOptions)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HistoryPreviewProcessor", "Failed to load image thumbnail", e)
+            null
+        }
+    }
+
     fun clear() {
         synchronized(this) {
             pendingItems.clear()
@@ -106,7 +144,8 @@ class HistoryPreviewProcessor(
     data class PreviewRequest(
         val id: Int,
         val uri: Uri?,
-        val hasPreview: Boolean
+        val hasPreview: Boolean,
+        val mediaType: MediaType = MediaType.VIDEO
     ) {
         val stableKey: String = "$id|${uri?.toString().orEmpty()}"
     }
