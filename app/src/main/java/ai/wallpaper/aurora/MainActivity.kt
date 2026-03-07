@@ -224,8 +224,13 @@ fun MainScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (!isGranted) {
-            // 可以显示权限说明
+        if (isGranted) {
+            scope.launch {
+                isLoadingLocalVideos = true
+                localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
+                localVideoOffset = localVideos.size
+                isLoadingLocalVideos = false
+            }
         }
     }
 
@@ -235,18 +240,11 @@ fun MainScreen(
     ) { uri: Uri? ->
         uri?.let {
             saveVideoUri(context, it)
-            VideoLiveWallpaperService.setToWallPaper(context)
-            // 重新加载历史记录
-            val history = WallpaperHistoryManager.loadHistory(context)
-            val idMap = mutableMapOf<Int, String>()
-            videoList = history.map { item ->
-                val hashId = item.id.hashCode()
-                idMap[hashId] = item.id
-                VideoItem(
-                    id = hashId,
-                    uri = Uri.parse(item.videoUri)
-                )
+            if (!isAuroraWallpaperActive(context)) {
+                VideoLiveWallpaperService.setToWallPaper(context)
             }
+            val (items, idMap) = loadHistoryVideoItems(context)
+            videoList = items
             videoIdMap = idMap
         }
     }
@@ -260,23 +258,23 @@ fun MainScreen(
         }
 
         // 从历史记录加载视频列表
-        val history = WallpaperHistoryManager.loadHistory(context)
-        val idMap = mutableMapOf<Int, String>()
-        videoList = history.map { item ->
-            val hashId = item.id.hashCode()
-            idMap[hashId] = item.id
-            VideoItem(
-                id = hashId,
-                uri = Uri.parse(item.videoUri)
-            )
-        }
+        val (items, idMap) = loadHistoryVideoItems(context)
+        videoList = items
         videoIdMap = idMap
 
-        // 加载本地视频库
-        isLoadingLocalVideos = true
-        localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
-        localVideoOffset = 20
-        isLoadingLocalVideos = false
+        // 仅在权限已存在时加载本地视频库
+        val hasVideoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+        } else {
+            context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+
+        if (hasVideoPermission) {
+            isLoadingLocalVideos = true
+            localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
+            localVideoOffset = localVideos.size
+            isLoadingLocalVideos = false
+        }
     }
 
     ModalNavigationDrawer(
@@ -358,7 +356,9 @@ fun MainScreen(
                             onClick = {
                                 if (videoPath.isNotBlank()) {
                                     saveVideoPath(context, videoPath)
-                                    VideoLiveWallpaperService.setToWallPaper(context)
+                                    if (!isAuroraWallpaperActive(context)) {
+                                        VideoLiveWallpaperService.setToWallPaper(context)
+                                    }
                                     videoPath = ""
                                     scope.launch { drawerState.close() }
                                 }
@@ -1032,7 +1032,7 @@ fun MainScreen(
                                 .weight(1f)
                                 .fillMaxWidth()
                         ) {
-                            items(videoList) { video ->
+                            items(videoList, key = { it.id }) { video ->
                                 VideoGridItem(
                                     video = video,
                                     isSelected = selectedVideoId == video.id,
@@ -1041,9 +1041,11 @@ fun MainScreen(
                                         selectedVideoId = if (selectedVideoId == videoId) null else videoId
                                     },
                                     onVideoClick = { videoUri ->
-                                        // 直接切换壁纸路径，不打开系统壁纸选择器
                                         videoUri?.let { uri ->
                                             saveVideoPath(context, uri.toString())
+                                            if (!isAuroraWallpaperActive(context)) {
+                                                VideoLiveWallpaperService.setToWallPaper(context)
+                                            }
                                         }
                                     },
                                     onVideoLongPress = { videoId ->
@@ -1051,17 +1053,8 @@ fun MainScreen(
                                         val originalId = videoIdMap[videoId]
                                         originalId?.let { id ->
                                             WallpaperHistoryManager.deleteHistory(context, id)
-                                            // 重新加载历史记录
-                                            val history = WallpaperHistoryManager.loadHistory(context)
-                                            val idMap = mutableMapOf<Int, String>()
-                                            videoList = history.map { item ->
-                                                val hashId = item.id.hashCode()
-                                                idMap[hashId] = item.id
-                                                VideoItem(
-                                                    id = hashId,
-                                                    uri = Uri.parse(item.videoUri)
-                                                )
-                                            }
+                                            val (items, idMap) = loadHistoryVideoItems(context)
+                                            videoList = items
                                             videoIdMap = idMap
                                         }
                                     }
@@ -1096,16 +1089,19 @@ fun MainScreen(
                             }
                         },
                         onVideoClick = { video ->
-                            // 直接保存视频路径，不打开系统壁纸选择器
                             saveVideoUri(context, video.uri)
-                            // 添加到历史记录
+                            isLocalLibraryVisible = true
                             val history = WallpaperHistoryManager.loadHistory(context)
+                            val idMap = mutableMapOf<Int, String>()
                             videoList = history.map { item ->
+                                val hashId = item.id.hashCode()
+                                idMap[hashId] = item.id
                                 VideoItem(
-                                    id = item.id.hashCode(),
+                                    id = hashId,
                                     uri = Uri.parse(item.videoUri)
                                 )
                             }
+                            videoIdMap = idMap
                         }
                     )
                 }
@@ -1138,7 +1134,7 @@ fun VideoGridItem(
         }
     )
 
-    val exoPlayer = remember {
+    val exoPlayer = remember(video.uri) {
         ExoPlayer.Builder(context).build().apply {
             video.uri?.let { uri ->
                 setMediaItem(MediaItem.fromUri(uri))
@@ -1149,7 +1145,7 @@ fun VideoGridItem(
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(exoPlayer) {
         onDispose {
             exoPlayer.release()
         }
@@ -1215,6 +1211,26 @@ fun VideoGridItem(
     }
 }
 
+private fun isAuroraWallpaperActive(context: Context): Boolean {
+    val wallpaperInfo = android.app.WallpaperManager.getInstance(context).wallpaperInfo ?: return false
+    return wallpaperInfo.packageName == context.packageName &&
+        wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
+}
+
+private fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
+    val history = WallpaperHistoryManager.loadHistory(context)
+    val idMap = mutableMapOf<Int, String>()
+    val items = history.map { item ->
+        val hashId = item.id.hashCode()
+        idMap[hashId] = item.id
+        VideoItem(
+            id = hashId,
+            uri = Uri.parse(item.videoUri)
+        )
+    }
+    return items to idMap
+}
+
 private fun loadSavedVideos(context: Context): Uri? {
     return try {
         val file = File(context.filesDir, "video_live_wallpaper_file_path")
@@ -1230,24 +1246,25 @@ private fun loadSavedVideos(context: Context): Uri? {
 }
 
 private fun saveVideoUri(context: Context, uri: Uri) {
-    // 持久化 URI 权限
     try {
-        context.contentResolver.takePersistableUriPermission(
-            uri,
-            Intent.FLAG_GRANT_READ_URI_PERMISSION
-        )
-        android.util.Log.d("MainActivity", "Persistable URI permission granted for: $uri")
+        val uriString = uri.toString()
+        if (uriString.startsWith("content://com.android.providers") || uriString.startsWith("content://com.google.android.apps")) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            android.util.Log.d("MainActivity", "Persistable URI permission granted for: $uri")
+        }
     } catch (e: Exception) {
         android.util.Log.e("MainActivity", "Failed to take persistable URI permission", e)
     }
 
-    // 保存 URI 路径
     context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
         it.write(uri.toString().toByteArray())
     }
 
-    // 添加到历史记录
     WallpaperHistoryManager.addHistory(context, uri)
+    VideoLiveWallpaperService.notifyVideoPathChanged(context)
 
     android.util.Log.d("MainActivity", "Video URI saved: $uri")
 }
@@ -1256,6 +1273,7 @@ private fun saveVideoPath(context: Context, path: String) {
     context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
         it.write(path.toByteArray())
     }
+    VideoLiveWallpaperService.notifyVideoPathChanged(context)
 }
 
 @Composable
@@ -1356,7 +1374,7 @@ fun LocalVideoLibrary(
                     }
                 }
 
-                items(localVideos) { video ->
+                items(localVideos, key = { it.id }) { video ->
                     LocalVideoCard(
                         video = video,
                         themeColors = themeColors,
@@ -1452,7 +1470,7 @@ fun LocalVideoCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val exoPlayer = remember {
+    val exoPlayer = remember(video.uri) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(video.uri))
             prepare()
@@ -1461,7 +1479,7 @@ fun LocalVideoCard(
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(exoPlayer) {
         onDispose {
             exoPlayer.release()
         }
@@ -1478,13 +1496,14 @@ fun LocalVideoCard(
                 shape = RoundedCornerShape(8.dp)
             )
             .background(MaterialTheme.colorScheme.surface)
-            .clickable { onClick() }
     ) {
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
+                    isClickable = false
+                    isFocusable = false
                     layoutParams = android.view.ViewGroup.LayoutParams(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -1494,7 +1513,12 @@ fun LocalVideoCard(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 视频名称覆盖层
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { onClick() }
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1512,7 +1536,7 @@ fun LocalVideoCard(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(exoPlayer) {
         exoPlayer.play()
     }
 }

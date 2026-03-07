@@ -22,6 +22,7 @@
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Aurora"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         tools:targetApi="tiramisu">
         <activity
             android:name=".MainActivity"
