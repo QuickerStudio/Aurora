@@ -84,6 +84,17 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
 
+    private var refreshHistoryCallback: (() -> Unit)? = null
+
+    private val historyRefreshReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == ACTION_REFRESH_HISTORY) {
+                android.util.Log.d("MainActivity", "Received history refresh broadcast")
+                refreshHistoryCallback?.invoke()
+            }
+        }
+    }
+
     private val historyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == VideoLiveWallpaperService.ACTION_VIDEO_PLAYBACK_STARTED) {
@@ -92,12 +103,20 @@ class MainActivity : ComponentActivity() {
                     try {
                         WallpaperHistoryManager.addHistory(context, Uri.parse(it))
                         android.util.Log.d("MainActivity", "Added to history from wallpaper service: $it")
+
+                        // 发送本地广播通知 UI 刷新
+                        val refreshIntent = Intent(ACTION_REFRESH_HISTORY)
+                        context.sendBroadcast(refreshIntent)
                     } catch (e: Exception) {
                         android.util.Log.e("MainActivity", "Failed to add history", e)
                     }
                 }
             }
         }
+    }
+
+    companion object {
+        const val ACTION_REFRESH_HISTORY = "ai.wallpaper.aurora.REFRESH_HISTORY"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,6 +135,19 @@ class MainActivity : ComponentActivity() {
             registerReceiver(historyReceiver, filter)
         }
 
+        // 注册历史刷新广播接收器
+        val refreshFilter = IntentFilter(ACTION_REFRESH_HISTORY)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(
+                this,
+                historyRefreshReceiver,
+                refreshFilter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(historyRefreshReceiver, refreshFilter)
+        }
+
         setContent {
             // 在 setContent 内部管理主题状态，这样可以响应状态变化
             var followSystemTheme by remember {
@@ -128,6 +160,19 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            // 历史刷新触发器
+            var historyRefreshTrigger by remember { mutableStateOf(0) }
+
+            // 设置刷新回调
+            DisposableEffect(Unit) {
+                refreshHistoryCallback = {
+                    historyRefreshTrigger++
+                }
+                onDispose {
+                    refreshHistoryCallback = null
+                }
+            }
+
             AuroraTheme(
                 selectedTheme = selectedTheme,
                 followSystemTheme = followSystemTheme
@@ -135,6 +180,7 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     initialFollowSystemTheme = followSystemTheme,
                     initialSelectedTheme = selectedTheme,
+                    historyRefreshTrigger = historyRefreshTrigger,
                     onThemeChange = { theme ->
                         selectedTheme = theme
                     },
@@ -150,6 +196,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         try {
             unregisterReceiver(historyReceiver)
+            unregisterReceiver(historyRefreshReceiver)
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error unregistering receiver", e)
         }
@@ -168,6 +215,7 @@ data class VideoItem(
 fun MainScreen(
     initialFollowSystemTheme: Boolean = false,
     initialSelectedTheme: String = "classic",
+    historyRefreshTrigger: Int = 0,
     onThemeChange: (String) -> Unit = {},
     onFollowSystemThemeChange: (Boolean) -> Unit = {}
 ) {
@@ -363,6 +411,18 @@ fun MainScreen(
             localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
             localVideoOffset = localVideos.size
             isLoadingLocalVideos = false
+        }
+    }
+
+    // 监听历史刷新触发器
+    LaunchedEffect(historyRefreshTrigger) {
+        if (historyRefreshTrigger > 0) {
+            android.util.Log.d("MainActivity", "Refreshing history list, trigger: $historyRefreshTrigger")
+            val (items, idMap) = loadHistoryVideoItems(context)
+            videoList = items
+            videoIdMap = idMap
+            // 重置显示数量
+            historyDisplayCount = minOf(10, items.size)
         }
     }
 
