@@ -2,23 +2,18 @@ package ai.wallpaper.aurora.utils
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.security.MessageDigest
 
 /**
- * 视频缩略图缓存系统
- * 避免实时生成视频预览，减少 MediaCodec 资源占用
+ * 视频缩略图生成系统 - 纯内存实现
+ * 动态生成缩略图，不使用磁盘缓存
  */
 object VideoThumbnailCache {
-    private const val CACHE_DIR = "video_thumbnails"
     private const val MAX_THUMBNAIL_WIDTH = 240
     private const val MAX_THUMBNAIL_HEIGHT = 320
     private const val PRIMARY_FRAME_TIME_US = 500_000L
@@ -26,26 +21,12 @@ object VideoThumbnailCache {
     private val generationMutex = Mutex()
 
     /**
-     * 获取视频缩略图，优先从缓存读取
+     * 动态生成视频缩略图
      */
-    suspend fun getThumbnail(context: Context, videoUri: Uri): Bitmap? = withContext(Dispatchers.IO) {
+    suspend fun getThumbnail(context: Context, videoUri: Uri, displayMode: String = "fit"): Bitmap? = withContext(Dispatchers.IO) {
         try {
-            val cacheKey = generateCacheKey(videoUri)
-            val cacheFile = getCacheFile(context, cacheKey)
-
-            // 优先从缓存读取
-            if (cacheFile.exists()) {
-                return@withContext BitmapFactory.decodeFile(cacheFile.absolutePath)
-            }
-
             generationMutex.withLock {
-                if (cacheFile.exists()) {
-                    return@withLock BitmapFactory.decodeFile(cacheFile.absolutePath)
-                }
-
-                val thumbnail = extractThumbnail(context, videoUri)
-                thumbnail?.let { saveThumbnail(cacheFile, it) }
-                thumbnail
+                extractThumbnail(context, videoUri, displayMode)
             }
         } catch (e: Exception) {
             android.util.Log.e("VideoThumbnailCache", "Failed to get thumbnail", e)
@@ -54,9 +35,9 @@ object VideoThumbnailCache {
     }
 
     /**
-     * 从视频提取缩略图，优先跳过开头黑帧
+     * 从视频提取缩略图并根据显示模式处理
      */
-    private fun extractThumbnail(context: Context, videoUri: Uri): Bitmap? {
+    private fun extractThumbnail(context: Context, videoUri: Uri, displayMode: String): Bitmap? {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, videoUri)
@@ -69,7 +50,13 @@ object VideoThumbnailCache {
                 ?: retriever.getFrameAtTime(SECONDARY_FRAME_TIME_US, MediaMetadataRetriever.OPTION_CLOSEST)
                 ?: retriever.getFrameAtTime(-1)
 
-            frame?.let { scaleBitmapPreservingAspectRatio(it, MAX_THUMBNAIL_WIDTH, MAX_THUMBNAIL_HEIGHT) }
+            frame?.let {
+                if (displayMode == "fit") {
+                    scaleBitmapPreservingAspectRatio(it, MAX_THUMBNAIL_WIDTH, MAX_THUMBNAIL_HEIGHT)
+                } else {
+                    scaleBitmapCropToFill(it, MAX_THUMBNAIL_WIDTH, MAX_THUMBNAIL_HEIGHT)
+                }
+            }
         } catch (e: Exception) {
             android.util.Log.e("VideoThumbnailCache", "Failed to extract thumbnail", e)
             null
@@ -89,7 +76,7 @@ object VideoThumbnailCache {
     }
 
     /**
-     * 将 Bitmap 等比缩放到目标边界内
+     * 将 Bitmap 等比缩放到目标边界内（fit模式）
      */
     private fun scaleBitmapPreservingAspectRatio(source: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
         val sourceWidth = source.width
@@ -118,85 +105,46 @@ object VideoThumbnailCache {
     }
 
     /**
-     * 保存缩略图到缓存
+     * 将 Bitmap 等比缩放后裁剪填充目标尺寸（fill模式）
      */
-    private fun saveThumbnail(cacheFile: File, bitmap: Bitmap) {
-        try {
-            cacheFile.parentFile?.mkdirs()
-            FileOutputStream(cacheFile).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("VideoThumbnailCache", "Failed to save thumbnail", e)
+    private fun scaleBitmapCropToFill(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return source
         }
-    }
 
-    fun deleteThumbnail(context: Context, videoUri: Uri) {
-        try {
-            getCacheFile(context, generateCacheKey(videoUri)).takeIf { it.exists() }?.delete()
-        } catch (e: Exception) {
-            android.util.Log.e("VideoThumbnailCache", "Failed to delete thumbnail", e)
-        }
-    }
+        // 计算缩放比例，选择能填满目标尺寸的较大值
+        val widthScale = targetWidth.toFloat() / sourceWidth.toFloat()
+        val heightScale = targetHeight.toFloat() / sourceHeight.toFloat()
+        val scale = maxOf(widthScale, heightScale)
 
-    fun pruneCache(context: Context, retainedUris: Collection<Uri>) {
-        pruneCacheByKey(context, retainedUris.mapTo(hashSetOf()) { generateCacheKey(it) })
-    }
+        // 缩放后的尺寸
+        val scaledWidth = (sourceWidth * scale).toInt()
+        val scaledHeight = (sourceHeight * scale).toInt()
 
-    fun pruneCacheByUriString(context: Context, retainedUriStrings: Collection<String>) {
-        pruneCacheByKey(
-            context,
-            retainedUriStrings.asSequence()
-                .filter { it.isNotBlank() }
-                .map { generateCacheKey(Uri.parse(it)) }
-                .toHashSet()
-        )
-    }
-
-    private fun pruneCacheByKey(context: Context, retainedKeys: Set<String>) {
-        try {
-            val cacheDir = File(context.cacheDir, CACHE_DIR)
-            if (!cacheDir.exists()) return
-
-            cacheDir.listFiles()?.forEach { file ->
-                if (file.isFile) {
-                    val fileKey = file.nameWithoutExtension
-                    if (fileKey !in retainedKeys) {
-                        file.delete()
-                    }
+        // 先缩放
+        val scaled = if (scale != 1f) {
+            Bitmap.createScaledBitmap(source, scaledWidth, scaledHeight, true).also {
+                if (it != source) {
+                    source.recycle()
                 }
             }
-        } catch (e: Exception) {
-            android.util.Log.e("VideoThumbnailCache", "Failed to prune cache", e)
+        } else {
+            source
         }
-    }
 
-    /**
-     * 生成缓存键（基于 URI 的 MD5）
-     */
-    private fun generateCacheKey(uri: Uri): String {
-        val md = MessageDigest.getInstance("MD5")
-        val digest = md.digest(uri.toString().toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }
-    }
+        // 裁剪中心区域
+        val cropX = ((scaledWidth - targetWidth) / 2).coerceAtLeast(0)
+        val cropY = ((scaledHeight - targetHeight) / 2).coerceAtLeast(0)
+        val cropWidth = targetWidth.coerceAtMost(scaledWidth)
+        val cropHeight = targetHeight.coerceAtMost(scaledHeight)
 
-    /**
-     * 获取缓存文件路径
-     */
-    private fun getCacheFile(context: Context, cacheKey: String): File {
-        val cacheDir = File(context.cacheDir, CACHE_DIR)
-        return File(cacheDir, "$cacheKey.jpg")
-    }
-
-    /**
-     * 清理缓存
-     */
-    fun clearCache(context: Context) {
-        try {
-            val cacheDir = File(context.cacheDir, CACHE_DIR)
-            cacheDir.deleteRecursively()
-        } catch (e: Exception) {
-            android.util.Log.e("VideoThumbnailCache", "Failed to clear cache", e)
+        return Bitmap.createBitmap(scaled, cropX, cropY, cropWidth, cropHeight).also {
+            if (it != scaled) {
+                scaled.recycle()
+            }
         }
     }
 }

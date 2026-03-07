@@ -23,7 +23,7 @@ class HistoryPreviewProcessor(
     private val failedKeys = mutableSetOf<String>()
     private var workerRunning = false
 
-    fun submit(items: List<PreviewRequest>, onPreviewReady: (Int, Uri, Bitmap) -> Unit) {
+    fun submit(items: List<PreviewRequest>, displayMode: String = "fit", onPreviewReady: (Int, Uri, Bitmap) -> Unit) {
         synchronized(this) {
             val activeKeys = items.mapTo(linkedSetOf()) { it.stableKey }
             pendingItems.keys.retainAll(activeKeys)
@@ -62,7 +62,7 @@ class HistoryPreviewProcessor(
 
                     val uri = next.uri ?: continue
                     try {
-                        val thumbnail = VideoThumbnailCache.getThumbnail(appContext, uri)
+                        val thumbnail = VideoThumbnailCache.getThumbnail(appContext, uri, displayMode)
                         if (thumbnail != null) {
                             launch(mainDispatcher) {
                                 onPreviewReady(next.id, uri, thumbnail)

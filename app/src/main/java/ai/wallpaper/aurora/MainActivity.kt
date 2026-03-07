@@ -74,6 +74,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.AspectRatioFrameLayout
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import ai.wallpaper.aurora.service.UnlockWallpaperService
@@ -295,6 +296,10 @@ fun MainScreen(
     var selectedTheme by remember {
         mutableStateOf(initialSelectedTheme)
     }
+    var historyCardDisplayMode by remember {
+        val modeFile = File(context.filesDir, "history_card_display_mode")
+        mutableStateOf(if (modeFile.exists()) modeFile.readText() else "fit")
+    }
     var showUserGuideDialog by remember { mutableStateOf(false) }
     var showReportIssueDialog by remember { mutableStateOf(false) }
     var issueTitle by remember { mutableStateOf("") }
@@ -392,7 +397,6 @@ fun MainScreen(
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
             videoIdMap = idMap
-            syncHistoryThumbnailCache(context, items)
         }
     }
 
@@ -408,7 +412,6 @@ fun MainScreen(
         val (items, idMap) = loadHistoryVideoItems(context)
         videoList = items
         videoIdMap = idMap
-        syncHistoryThumbnailCache(context, items)
 
         // 仅在权限已存在时加载本地视频库
         val hasVideoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -432,7 +435,6 @@ fun MainScreen(
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
             videoIdMap = idMap
-            syncHistoryThumbnailCache(context, items)
             historyPreviewProcessor.clear()
             // 重置显示数量
             historyDisplayCount = minOf(10, items.size)
@@ -697,6 +699,48 @@ fun MainScreen(
                                 }
                             }
                         )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.history_card_display_mode),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (historyCardDisplayMode == "fit")
+                                       stringResource(R.string.history_card_display_fit)
+                                       else stringResource(R.string.history_card_display_fill),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                historyCardDisplayMode = if (historyCardDisplayMode == "fit") "fill" else "fit"
+                                val modeFile = File(context.filesDir, "history_card_display_mode")
+                                modeFile.writeText(historyCardDisplayMode)
+
+                                // 清除旧的预览缓存，强制重新加载
+                                videoList = videoList.map { it.copy(previewBitmap = null) }
+                                historyPreviewProcessor.clear()
+                            },
+                            shape = RoundedCornerShape(999.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = if (historyCardDisplayMode == "fit")
+                                       stringResource(R.string.history_card_display_fill)
+                                       else stringResource(R.string.history_card_display_fit),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -1297,6 +1341,7 @@ fun MainScreen(
                                             hasPreview = video.previewBitmap != null
                                         )
                                     },
+                                    displayMode = historyCardDisplayMode,
                                     onPreviewReady = { id, uri, bitmap ->
                                         videoList = videoList.map { item ->
                                             if (item.id == id && item.uri == uri && item.previewBitmap == null) {
@@ -1374,16 +1419,15 @@ fun MainScreen(
                                         val originalId = videoIdMap[videoId]
                                         originalId?.let { id ->
                                             WallpaperHistoryManager.deleteHistory(context, id)
-                                            video.uri?.let { VideoThumbnailCache.deleteThumbnail(context, it) }
                                             val (items, idMap) = loadHistoryVideoItems(context)
                                             videoList = items
                                             videoIdMap = idMap
-                                            syncHistoryThumbnailCache(context, items)
                                             historyPreviewProcessor.clear()
                                             // 重置显示数量
                                             historyDisplayCount = minOf(10, items.size)
                                         }
-                                    }
+                                    },
+                                    displayMode = historyCardDisplayMode
                                 )
                             }
                         }
@@ -1431,7 +1475,6 @@ fun MainScreen(
                             val (items, idMap) = loadHistoryVideoItems(context)
                             videoList = items
                             videoIdMap = idMap
-                            syncHistoryThumbnailCache(context, items)
                             historyPreviewProcessor.clear()
                         }
                     )
@@ -1449,7 +1492,8 @@ fun VideoGridItem(
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
     onVideoTouch: (Int) -> Unit,
     onVideoClick: (Uri?) -> Unit = {},
-    onVideoLongPress: (Int) -> Unit = {}
+    onVideoLongPress: (Int) -> Unit = {},
+    displayMode: String = "fit"
 ) {
     var isDeleting by remember { mutableStateOf(false) }
 
@@ -1527,25 +1571,35 @@ fun VideoGridItem(
             }
     ) {
         if (isSelected && exoPlayer != null) {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        player = exoPlayer
-                        useController = false
-                        layoutParams = android.view.ViewGroup.LayoutParams(
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                    }
-                },
-                update = { view ->
-                    view.player = exoPlayer
-                },
-                onRelease = { view ->
-                    view.player = null
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+            key(displayMode) {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            player = exoPlayer
+                            useController = false
+                            resizeMode = if (displayMode == "fit")
+                                AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            else
+                                AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                        }
+                    },
+                    update = { view ->
+                        view.player = exoPlayer
+                        view.resizeMode = if (displayMode == "fit")
+                            AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        else
+                            AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    },
+                    onRelease = { view ->
+                        view.player = null
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         } else {
             val previewBitmap = video.previewBitmap
             if (previewBitmap != null) {
@@ -1583,10 +1637,6 @@ private fun isAuroraWallpaperActive(context: Context): Boolean {
     val wallpaperInfo = android.app.WallpaperManager.getInstance(context).wallpaperInfo ?: return false
     return wallpaperInfo.packageName == context.packageName &&
         wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
-}
-
-private fun syncHistoryThumbnailCache(context: Context, items: List<VideoItem>) {
-    VideoThumbnailCache.pruneCache(context, items.mapNotNull { it.uri })
 }
 
 private fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
