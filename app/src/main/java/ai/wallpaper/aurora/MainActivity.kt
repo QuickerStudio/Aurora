@@ -1366,10 +1366,17 @@ fun LocalVideoLibrary(
         animationSpec = tween(durationMillis = 300)
     )
 
-    // 自动隐藏倒计时
+    // 选中状态管理 - 触控播放
+    var selectedVideoId by remember { mutableStateOf<Long?>(null) }
+
+    // 自动隐藏倒计时 - 折叠时回收所有播放器资源
     LaunchedEffect(isVisible, autoHideTimer) {
         if (isVisible) {
             delay((autoHideTimer * 1000).toLong())
+            // 折叠前释放所有播放器
+            playerPool.values.forEach { it.release() }
+            playerPool.clear()
+            selectedVideoId = null
             onVisibilityChange(false)
         }
     }
@@ -1434,7 +1441,13 @@ fun LocalVideoLibrary(
                         video = video,
                         themeColors = themeColors,
                         playerPool = playerPool,
-                        onClick = { onVideoClick(video) }
+                        isSelected = selectedVideoId == video.id,
+                        onClick = {
+                            // 触控切换选中状态
+                            selectedVideoId = if (selectedVideoId == video.id) null else video.id
+                            // 点击后设置为壁纸
+                            onVideoClick(video)
+                        }
                     )
                 }
 
@@ -1524,6 +1537,7 @@ fun LocalVideoCard(
     video: LocalVideo,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     playerPool: MutableMap<String, ExoPlayer>,
+    isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1548,9 +1562,14 @@ fun LocalVideoCard(
         }
     }
 
-    // 自动播放
-    LaunchedEffect(exoPlayer) {
-        exoPlayer.play()
+    // 触控播放：只有选中时才播放
+    LaunchedEffect(isSelected, exoPlayer) {
+        if (isSelected) {
+            exoPlayer.play()
+        } else {
+            exoPlayer.pause()
+            exoPlayer.seekTo(0)
+        }
     }
 
     Box(
@@ -1602,9 +1621,5 @@ fun LocalVideoCard(
                 fontSize = 10.sp
             )
         }
-    }
-
-    LaunchedEffect(exoPlayer) {
-        exoPlayer.play()
     }
 }
