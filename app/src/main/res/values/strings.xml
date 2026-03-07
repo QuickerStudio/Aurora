@@ -38,6 +38,7 @@
     <string name="issues_url" translatable="false">https://github.com/QuickerStudio/Aurora/issues</string>
     <string name="issues_new_url" translatable="false">https://github.com/QuickerStudio/Aurora/issues/new</string>
     <string name="check_update">Check update</string>
+    <string name="stop_wallpaper">Stop wallpaper</string>
     <string name="report_issue">Report issue</string>
     <string name="feedback_title">Feedback title</string>
     <string name="feedback_content">Feedback content</string>

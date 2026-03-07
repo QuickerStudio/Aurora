@@ -270,6 +270,13 @@ fun MainScreen(
         0.3f
     )
     val updateButtonContent = themeColors?.buttonContent ?: MaterialTheme.colorScheme.onPrimary
+    // 终止壁纸按钮使用红色系
+    val stopButtonBackground = lerp(
+        Color(0xFFE53935), // 红色
+        Color.White,
+        0.2f
+    )
+    val stopButtonContent = Color.White
     val issuesNewUrl = stringResource(R.string.issues_new_url)
     val appVersion = stringResource(R.string.version_name)
     val currentThemeName = if (followSystemTheme) {
@@ -381,26 +388,117 @@ fun MainScreen(
                             text = stringResource(R.string.settings),
                             style = MaterialTheme.typography.headlineSmall
                         )
-                        Button(
-                            onClick = {
-                                context.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse(releasesUrl)
-                                    )
-                                )
-                            },
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = updateButtonBackground,
-                                contentColor = updateButtonContent
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stringResource(R.string.check_update),
-                                style = MaterialTheme.typography.bodyMedium
+                            // 终止壁纸按钮状态
+                            var stopButtonState by remember { mutableStateOf("normal") } // normal, success, error
+                            var isStopPressed by remember { mutableStateOf(false) }
+                            var shakeOffset by remember { mutableStateOf(0f) }
+
+                            val stopButtonScale by animateFloatAsState(
+                                targetValue = if (isStopPressed) 0.92f else 1f,
+                                animationSpec = tween(durationMillis = 100)
                             )
+
+                            // 抖动动画
+                            LaunchedEffect(stopButtonState) {
+                                if (stopButtonState == "error") {
+                                    repeat(4) { i ->
+                                        shakeOffset = if (i % 2 == 0) 10f else -10f
+                                        delay(50)
+                                    }
+                                    shakeOffset = 0f
+                                    delay(1500)
+                                    stopButtonState = "normal"
+                                }
+                            }
+
+                            // 成功状态自动恢复
+                            LaunchedEffect(stopButtonState) {
+                                if (stopButtonState == "success") {
+                                    delay(2000)
+                                    stopButtonState = "normal"
+                                }
+                            }
+
+                            // 动态按钮颜色
+                            val currentStopButtonBackground = when (stopButtonState) {
+                                "success" -> Color(0xFF4CAF50) // 绿色
+                                "error" -> stopButtonBackground
+                                else -> stopButtonBackground
+                            }
+
+                            // 终止壁纸按钮
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isStopPressed = true
+                                        delay(100)
+                                        try {
+                                            // 检查是否有视频壁纸正在运行
+                                            val wallpaperManager = android.app.WallpaperManager.getInstance(context)
+                                            val wallpaperInfo = wallpaperManager.wallpaperInfo
+
+                                            if (wallpaperInfo != null &&
+                                                wallpaperInfo.packageName == context.packageName &&
+                                                wallpaperInfo.serviceName == VideoLiveWallpaperService::class.java.name) {
+                                                // 有视频壁纸在运行，清除它
+                                                wallpaperManager.clear()
+                                                stopButtonState = "success"
+                                            } else {
+                                                // 没有视频壁纸在运行，显示错误（抖动）
+                                                stopButtonState = "error"
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("MainActivity", "Failed to clear wallpaper", e)
+                                            stopButtonState = "error"
+                                        } finally {
+                                            isStopPressed = false
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = currentStopButtonBackground,
+                                    contentColor = stopButtonContent
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = stopButtonScale
+                                        scaleY = stopButtonScale
+                                        translationX = shakeOffset
+                                    }
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.stop_wallpaper),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            // 检查更新按钮
+                            Button(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse(releasesUrl)
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = updateButtonBackground,
+                                    contentColor = updateButtonContent
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.check_update),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
 
