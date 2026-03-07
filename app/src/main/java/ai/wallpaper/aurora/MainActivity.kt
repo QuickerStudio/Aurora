@@ -19,6 +19,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -62,6 +65,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1408,11 +1412,24 @@ fun LocalVideoLibrary(
             .height(if (isVisible || offsetX < 400.dp) 176.dp else 40.dp)
     ) {
         if (isVisible || offsetX < 400.dp) {
-            // 横向滑动视频列表
+            // 横向滑动视频列表 - 添加滑动阻尼效果
+            // 关键优化：降低滑动速度，确保资源回收速度 > 创建速度
+            val density = LocalDensity.current
+            val flingBehavior = remember {
+                object : FlingBehavior {
+                    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+                        // 降低滑动速度到原来的 40%，增加阻尼效果
+                        val dampedVelocity = initialVelocity * 0.4f
+                        return scrollBy(dampedVelocity)
+                    }
+                }
+            }
+
             LazyRow(
                 state = listState,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
+                flingBehavior = flingBehavior,
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(x = offsetX)
@@ -1544,14 +1561,37 @@ fun LocalVideoCard(
     val uriKey = video.uri.toString()
 
     // 增量加载：从播放器池获取或创建播放器
+    // 关键优化：只加载前10秒视频，大幅降低内存占用
     val exoPlayer = remember(uriKey) {
         playerPool.getOrPut(uriKey) {
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(video.uri))
-                prepare()
-                volume = 0f
-                repeatMode = Player.REPEAT_MODE_ONE
-            }
+            ExoPlayer.Builder(context)
+                .setLoadControl(
+                    DefaultLoadControl.Builder()
+                        .setBufferDurationsMs(
+                            2000,  // minBufferMs: 最少缓冲2秒
+                            5000,  // maxBufferMs: 最多缓冲5秒
+                            1000,  // bufferForPlaybackMs
+                            1000   // bufferForPlaybackAfterRebufferMs
+                        )
+                        .build()
+                )
+                .build()
+                .apply {
+                    // 使用 ClippingConfiguration 只加载前10秒
+                    val clippedMediaItem = MediaItem.Builder()
+                        .setUri(video.uri)
+                        .setClippingConfiguration(
+                            MediaItem.ClippingConfiguration.Builder()
+                                .setEndPositionMs(10_000) // 只加载前10秒
+                                .build()
+                        )
+                        .build()
+
+                    setMediaItem(clippedMediaItem)
+                    prepare()
+                    volume = 0f
+                    repeatMode = Player.REPEAT_MODE_ONE
+                }
         }
     }
 
