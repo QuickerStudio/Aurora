@@ -15,35 +15,38 @@ import android.view.SurfaceHolder
 import androidx.core.content.ContextCompat
 import java.io.File
 
+/**
+ * 视频动态壁纸服务 - 基于母版架构，对齐 Android 16/API 36
+ *
+ * 设计原则：
+ * 1. 极简设计：只负责播放当前视频，不处理切换逻辑
+ * 2. 文件通信：通过 video_live_wallpaper_file_path 文件读取视频路径
+ * 3. 省电优化：同步 prepare() + start()，避免异步回调开销
+ * 4. 独立进程：运行在 :wallpaper 进程，与主应用隔离
+ * 5. 历史记录：通过广播通知主进程添加历史（跨进程通信）
+ */
 class VideoLiveWallpaperService : WallpaperService() {
 
     internal inner class VideoEngine : Engine() {
         private var mediaPlayer: MediaPlayer? = null
         private var broadcastReceiver: BroadcastReceiver? = null
         private var videoFilePath: String? = null
-        private var currentHolder: SurfaceHolder? = null
 
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
+
+            // 读取视频路径（只读一次，切换壁纸通过系统重启服务实现）
             videoFilePath = readVideoFilePath()
 
-            val intentFilter = IntentFilter().apply {
-                addAction(VIDEO_PARAMS_CONTROL_ACTION)
-                addAction(VIDEO_PATH_UPDATED_ACTION)
-            }
-
+            // 注册音量控制广播（保留母版功能）
+            val intentFilter = IntentFilter(VIDEO_PARAMS_CONTROL_ACTION)
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
-                    when (intent.action) {
-                        VIDEO_PARAMS_CONTROL_ACTION -> handleVolumeControl(intent)
-                        VIDEO_PATH_UPDATED_ACTION -> {
-                            Log.d("VideoWallpaper", "Received path update broadcast")
-                            reloadVideo()
-                        }
-                    }
+                    handleVolumeControl(intent)
                 }
             }.also { broadcastReceiver = it }
 
+            // Android 13+ 使用 RECEIVER_NOT_EXPORTED（安全性）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.registerReceiver(
                     this@VideoLiveWallpaperService,
@@ -61,7 +64,7 @@ class VideoLiveWallpaperService : WallpaperService() {
                 this@VideoLiveWallpaperService.openFileInput("video_live_wallpaper_file_path")
                     .bufferedReader().use { it.readText().trim() }
             } catch (e: Exception) {
-                Log.e("VideoWallpaper", "Failed to read video path", e)
+                Log.e(TAG, "Failed to read video path", e)
                 null
             }
         }
@@ -74,25 +77,20 @@ class VideoLiveWallpaperService : WallpaperService() {
             )
         }
 
-        private fun releasePlayer() {
-            mediaPlayer?.let {
-                try {
-                    if (it.isPlaying) it.stop()
-                } catch (_: Exception) {
-                }
-                it.release()
-            }
-            mediaPlayer = null
-        }
+        override fun onSurfaceCreated(holder: SurfaceHolder) {
+            super.onSurfaceCreated(holder)
 
-        private fun startPlayback(holder: SurfaceHolder) {
-            currentHolder = holder
-            val path = videoFilePath ?: return
+            val path = videoFilePath
+            if (path.isNullOrEmpty()) {
+                Log.e(TAG, "Video path is null or empty")
+                return
+            }
 
             try {
                 mediaPlayer = MediaPlayer().apply {
                     setSurface(holder.surface)
 
+                    // 支持 content:// URI（Android 10+ 媒体库）
                     if (path.startsWith("content://")) {
                         setDataSource(this@VideoLiveWallpaperService, Uri.parse(path))
                     } else {
@@ -101,60 +99,100 @@ class VideoLiveWallpaperService : WallpaperService() {
 
                     isLooping = true
                     setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
-                    setOnPreparedListener { it.start() }
-                    prepareAsync()
+
+                    // 同步 prepare（母版设计，省电稳定）
+                    prepare()
+                    start()
                 }
 
+                // 读取音量状态
                 val unmuteFile = File(filesDir, "unmute")
                 val volume = if (unmuteFile.exists()) 1.0f else 0f
                 mediaPlayer?.setVolume(volume, volume)
-                Log.d("VideoWallpaper", "Started playback for: $path")
+
+                Log.d(TAG, "Playback started: $path")
+
+                // 成功播放后，通过广播通知主进程添加历史记录
+                if (path.startsWith("content://")) {
+                    notifyVideoPlaybackStarted(path)
+                }
             } catch (e: Exception) {
-                Log.e("VideoWallpaper", "Failed to start playback for: $path", e)
+                Log.e(TAG, "Failed to start playback", e)
                 releasePlayer()
             }
         }
 
-        private fun reloadVideo() {
-            videoFilePath = readVideoFilePath()
-            val holder = currentHolder ?: return
-            releasePlayer()
-            startPlayback(holder)
-        }
-
-        override fun onSurfaceCreated(holder: SurfaceHolder) {
-            super.onSurfaceCreated(holder)
-            startPlayback(holder)
+        /**
+         * 通知主进程添加历史记录（跨进程通信）
+         */
+        private fun notifyVideoPlaybackStarted(videoUri: String) {
+            try {
+                val intent = Intent(ACTION_VIDEO_PLAYBACK_STARTED).apply {
+                    putExtra(EXTRA_VIDEO_URI, videoUri)
+                    setPackage(this@VideoLiveWallpaperService.packageName)
+                }
+                this@VideoLiveWallpaperService.sendBroadcast(intent)
+                Log.d(TAG, "Sent playback started broadcast: $videoUri")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send playback broadcast", e)
+            }
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
-            mediaPlayer?.let {
-                if (visible && !it.isPlaying) {
-                    it.start()
-                } else if (!visible && it.isPlaying) {
-                    it.pause()
+            mediaPlayer?.let { player ->
+                try {
+                    if (visible) {
+                        if (!player.isPlaying) player.start()
+                    } else {
+                        if (player.isPlaying) player.pause()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in visibility change", e)
                 }
             }
         }
 
         override fun onSurfaceDestroyed(holder: SurfaceHolder) {
             super.onSurfaceDestroyed(holder)
-            currentHolder = null
             releasePlayer()
         }
 
         override fun onDestroy() {
             super.onDestroy()
             releasePlayer()
-            broadcastReceiver?.let { unregisterReceiver(it) }
+            broadcastReceiver?.let {
+                try {
+                    unregisterReceiver(it)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error unregistering receiver", e)
+                }
+            }
+        }
+
+        private fun releasePlayer() {
+            mediaPlayer?.let { player ->
+                try {
+                    if (player.isPlaying) player.stop()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping player", e)
+                }
+                try {
+                    player.release()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error releasing player", e)
+                }
+            }
+            mediaPlayer = null
         }
     }
 
     override fun onCreateEngine(): Engine = VideoEngine()
 
     companion object {
-        const val VIDEO_PARAMS_CONTROL_ACTION = "com.wallpaper.livewallpaper"
-        const val VIDEO_PATH_UPDATED_ACTION = "ai.wallpaper.aurora.VIDEO_PATH_UPDATED"
+        private const val TAG = "VideoWallpaper"
+        const val VIDEO_PARAMS_CONTROL_ACTION = "ai.wallpaper.aurora.VOLUME_CONTROL"
+        const val ACTION_VIDEO_PLAYBACK_STARTED = "ai.wallpaper.aurora.VIDEO_PLAYBACK_STARTED"
+        const val EXTRA_VIDEO_URI = "video_uri"
         private const val KEY_ACTION = "music"
         private const val ACTION_MUSIC_UNMUTE = false
         private const val ACTION_MUSIC_MUTE = true
@@ -169,10 +207,6 @@ class VideoLiveWallpaperService : WallpaperService() {
             Intent(VIDEO_PARAMS_CONTROL_ACTION).apply {
                 putExtra(KEY_ACTION, ACTION_MUSIC_UNMUTE)
             }.also { context.sendBroadcast(it) }
-        }
-
-        fun notifyVideoPathChanged(context: Context) {
-            context.sendBroadcast(Intent(VIDEO_PATH_UPDATED_ACTION))
         }
 
         fun setToWallPaper(context: Context) {

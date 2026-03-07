@@ -1,9 +1,11 @@
 package ai.wallpaper.aurora
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -62,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -80,8 +83,38 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
 
+    private val historyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == VideoLiveWallpaperService.ACTION_VIDEO_PLAYBACK_STARTED) {
+                val videoUri = intent.getStringExtra(VideoLiveWallpaperService.EXTRA_VIDEO_URI)
+                videoUri?.let {
+                    try {
+                        WallpaperHistoryManager.addHistory(context, Uri.parse(it))
+                        android.util.Log.d("MainActivity", "Added to history from wallpaper service: $it")
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Failed to add history", e)
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 注册广播接收器（接收壁纸服务的播放通知）
+        val filter = IntentFilter(VideoLiveWallpaperService.ACTION_VIDEO_PLAYBACK_STARTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(
+                this,
+                historyReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(historyReceiver, filter)
+        }
+
         setContent {
             // 在 setContent 内部管理主题状态，这样可以响应状态变化
             var followSystemTheme by remember {
@@ -109,6 +142,15 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(historyReceiver)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error unregistering receiver", e)
         }
     }
 }
@@ -1140,6 +1182,11 @@ fun MainScreen(
                         },
                         onVideoClick = { video ->
                             saveVideoUri(context, video.uri)
+                            // 触发壁纸设置流程
+                            if (!isAuroraWallpaperActive(context)) {
+                                VideoLiveWallpaperService.setToWallPaper(context)
+                            }
+                            // 刷新历史列表
                             isLocalLibraryVisible = true
                             val history = WallpaperHistoryManager.loadHistory(context)
                             val idMap = mutableMapOf<Int, String>()
@@ -1320,8 +1367,8 @@ private fun saveVideoUri(context: Context, uri: Uri) {
         it.write(uri.toString().toByteArray())
     }
 
-    WallpaperHistoryManager.addHistory(context, uri)
-    VideoLiveWallpaperService.notifyVideoPathChanged(context)
+    // 注意：不在这里添加历史记录，只有壁纸服务成功使用视频后才记录
+    // 历史记录由 VideoLiveWallpaperService 在 onSurfaceCreated 成功播放后添加
 
     android.util.Log.d("MainActivity", "Video URI saved: $uri")
 }
@@ -1330,7 +1377,7 @@ private fun saveVideoPath(context: Context, path: String) {
     context.openFileOutput("video_live_wallpaper_file_path", Context.MODE_PRIVATE).use {
         it.write(path.toByteArray())
     }
-    VideoLiveWallpaperService.notifyVideoPathChanged(context)
+    // 注意：壁纸服务采用文件通信，切换壁纸需要重新应用壁纸（系统会重启服务）
 }
 
 @Composable
