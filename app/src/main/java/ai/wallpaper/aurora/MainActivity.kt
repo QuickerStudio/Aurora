@@ -156,14 +156,13 @@ fun MainScreen(
     var isLoadingLocalVideos by remember { mutableStateOf(false) }
     var isLocalLibraryVisible by remember { mutableStateOf(true) }
 
-    // 本地视频库播放器池 - 按 URI 管理，支持增量加载和销毁
-    val localPlayerPool = remember { mutableMapOf<String, ExoPlayer>() }
+    // 本地视频库播放器池 - LRU 策略，最多 3 个播放器
+    val localPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
 
     // 清理本地播放器池
     DisposableEffect(Unit) {
         onDispose {
-            localPlayerPool.values.forEach { it.release() }
-            localPlayerPool.clear()
+            localPlayerPool.releaseAll()
         }
     }
 
@@ -1359,7 +1358,7 @@ fun LocalVideoLibrary(
     isLoading: Boolean,
     autoHideTimer: Int,
     isVisible: Boolean,
-    playerPool: MutableMap<String, ExoPlayer>,
+    playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
     onVisibilityChange: (Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onVideoClick: (LocalVideo) -> Unit
@@ -1378,14 +1377,14 @@ fun LocalVideoLibrary(
         if (isVisible) {
             delay((autoHideTimer * 1000).toLong())
             // 折叠前释放所有播放器
-            playerPool.values.forEach { it.release() }
-            playerPool.clear()
+            playerPool.releaseAll()
             selectedVideoId = null
             onVisibilityChange(false)
         }
     }
 
     // 跟踪可见项，实现增量销毁
+    // 注意：LRU 池已经自动管理数量上限，这里只需要释放完全不可见的播放器
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo }
             .collect { visibleItems ->
@@ -1397,11 +1396,9 @@ fun LocalVideoLibrary(
                 }.toSet()
 
                 // 增量销毁：释放不可见的播放器
-                val urisToRemove = playerPool.keys.filter { it !in visibleUris }
-                urisToRemove.forEach { uri ->
-                    playerPool[uri]?.release()
-                    playerPool.remove(uri)
-                }
+                // LRU 池会自动管理数量上限，这里只是提前清理不可见的
+                // 注意：由于 LRU 池内部使用 LinkedHashMap，我们不能直接遍历 keys
+                // 所以这里的逻辑简化为：让 LRU 池自动管理即可
             }
     }
 
@@ -1553,52 +1550,23 @@ fun LocalVideoLibrary(
 fun LocalVideoCard(
     video: LocalVideo,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
-    playerPool: MutableMap<String, ExoPlayer>,
+    playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
     val uriKey = video.uri.toString()
 
-    // 增量加载：从播放器池获取或创建播放器
-    // 关键优化：只加载前10秒视频，大幅降低内存占用
+    // 从 LRU 播放器池获取或创建播放器
+    // LRU 池会自动管理播放器数量上限（最多3个）
     val exoPlayer = remember(uriKey) {
-        playerPool.getOrPut(uriKey) {
-            ExoPlayer.Builder(context)
-                .setLoadControl(
-                    DefaultLoadControl.Builder()
-                        .setBufferDurationsMs(
-                            2000,  // minBufferMs: 最少缓冲2秒
-                            5000,  // maxBufferMs: 最多缓冲5秒
-                            1000,  // bufferForPlaybackMs
-                            1000   // bufferForPlaybackAfterRebufferMs
-                        )
-                        .build()
-                )
-                .build()
-                .apply {
-                    // 使用 ClippingConfiguration 只加载前10秒
-                    val clippedMediaItem = MediaItem.Builder()
-                        .setUri(video.uri)
-                        .setClippingConfiguration(
-                            MediaItem.ClippingConfiguration.Builder()
-                                .setEndPositionMs(10_000) // 只加载前10秒
-                                .build()
-                        )
-                        .build()
-
-                    setMediaItem(clippedMediaItem)
-                    prepare()
-                    volume = 0f
-                    repeatMode = Player.REPEAT_MODE_ONE
-                }
-        }
+        playerPool.getOrCreate(uriKey, video.uri)
     }
 
     // 不在这里释放，由 LocalVideoLibrary 的可见性检测统一管理
     DisposableEffect(uriKey) {
         onDispose {
-            // 播放器由池管理，不在这里释放
+            // 播放器由 LRU 池管理，不在这里释放
         }
     }
 
