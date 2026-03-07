@@ -135,11 +135,33 @@ fun MainScreen(
     // 保存 hashCode 到原始 ID 的映射
     var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
 
+    // 历史卡片播放器池 - 按 URI 复用
+    val historyPlayerPool = remember { mutableMapOf<String, ExoPlayer>() }
+
+    // 清理历史播放器池
+    DisposableEffect(Unit) {
+        onDispose {
+            historyPlayerPool.values.forEach { it.release() }
+            historyPlayerPool.clear()
+        }
+    }
+
     // 本地视频库状态
     var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
     var localVideoOffset by remember { mutableStateOf(0) }
     var isLoadingLocalVideos by remember { mutableStateOf(false) }
     var isLocalLibraryVisible by remember { mutableStateOf(true) }
+
+    // 本地视频库播放器池 - 按 URI 管理，支持增量加载和销毁
+    val localPlayerPool = remember { mutableMapOf<String, ExoPlayer>() }
+
+    // 清理本地播放器池
+    DisposableEffect(Unit) {
+        onDispose {
+            localPlayerPool.values.forEach { it.release() }
+            localPlayerPool.clear()
+        }
+    }
 
     // 设置状态
     var showFab by remember {
@@ -1037,6 +1059,7 @@ fun MainScreen(
                                     video = video,
                                     isSelected = selectedVideoId == video.id,
                                     themeColors = themeColors,
+                                    playerPool = historyPlayerPool,
                                     onVideoTouch = { videoId ->
                                         selectedVideoId = if (selectedVideoId == videoId) null else videoId
                                     },
@@ -1063,13 +1086,14 @@ fun MainScreen(
                         }
                     }
 
-                    // 本地视频库横向滑动栏
+                    // 本地视频库横向滑动栏 - 增量加载和销毁
                     LocalVideoLibrary(
                         localVideos = localVideos,
                         themeColors = themeColors,
                         isLoading = isLoadingLocalVideos,
                         autoHideTimer = autoHideTimer,
                         isVisible = isLocalLibraryVisible,
+                        playerPool = localPlayerPool,
                         onVisibilityChange = { isVisible ->
                             isLocalLibraryVisible = isVisible
                         },
@@ -1115,12 +1139,12 @@ fun VideoGridItem(
     video: VideoItem,
     isSelected: Boolean,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
+    playerPool: MutableMap<String, ExoPlayer>,
     onVideoTouch: (Int) -> Unit,
     onVideoClick: (Uri?) -> Unit = {},
     onVideoLongPress: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
 
     // 删除动画状态
@@ -1134,31 +1158,41 @@ fun VideoGridItem(
         }
     )
 
-    val exoPlayer = remember(video.uri) {
-        ExoPlayer.Builder(context).build().apply {
-            video.uri?.let { uri ->
-                setMediaItem(MediaItem.fromUri(uri))
-                prepare()
-                volume = 0f // 静音
-                repeatMode = Player.REPEAT_MODE_ONE
+    // 按 URI 复用播放器 - 同一个 URI 只创建一次
+    val uriKey = video.uri?.toString() ?: ""
+    val exoPlayer = remember(uriKey) {
+        if (uriKey.isNotEmpty()) {
+            playerPool.getOrPut(uriKey) {
+                ExoPlayer.Builder(context).build().apply {
+                    video.uri?.let { uri ->
+                        setMediaItem(MediaItem.fromUri(uri))
+                        prepare()
+                        volume = 0f // 静音
+                        repeatMode = Player.REPEAT_MODE_ONE
+                    }
+                }
             }
-        }
-    }
-
-    DisposableEffect(exoPlayer) {
-        onDispose {
-            exoPlayer.release()
-        }
-    }
-
-    LaunchedEffect(isSelected) {
-        if (isSelected) {
-            exoPlayer.play()
-            isPlaying = true
         } else {
-            exoPlayer.pause()
-            exoPlayer.seekTo(0)
-            isPlaying = false
+            null
+        }
+    }
+
+    // 不在这里释放，保留在池中供复用
+    DisposableEffect(uriKey) {
+        onDispose {
+            // 播放器保留在池中，不释放
+        }
+    }
+
+    // 根据选中状态控制播放
+    LaunchedEffect(isSelected, exoPlayer) {
+        exoPlayer?.let {
+            if (isSelected) {
+                it.play()
+            } else {
+                it.pause()
+                it.seekTo(0)
+            }
         }
     }
 
@@ -1321,6 +1355,7 @@ fun LocalVideoLibrary(
     isLoading: Boolean,
     autoHideTimer: Int,
     isVisible: Boolean,
+    playerPool: MutableMap<String, ExoPlayer>,
     onVisibilityChange: (Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onVideoClick: (LocalVideo) -> Unit
@@ -1337,6 +1372,26 @@ fun LocalVideoLibrary(
             delay((autoHideTimer * 1000).toLong())
             onVisibilityChange(false)
         }
+    }
+
+    // 跟踪可见项，实现增量销毁
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+            .collect { visibleItems ->
+                val visibleUris = visibleItems.mapNotNull { itemInfo ->
+                    val index = itemInfo.index - 1 // 减1因为第一个是提示卡片
+                    if (index >= 0 && index < localVideos.size) {
+                        localVideos[index].uri.toString()
+                    } else null
+                }.toSet()
+
+                // 增量销毁：释放不可见的播放器
+                val urisToRemove = playerPool.keys.filter { it !in visibleUris }
+                urisToRemove.forEach { uri ->
+                    playerPool[uri]?.release()
+                    playerPool.remove(uri)
+                }
+            }
     }
 
     // 只在显示或动画中时占用完整空间，隐藏后只显示滑动区域
@@ -1378,6 +1433,7 @@ fun LocalVideoLibrary(
                     LocalVideoCard(
                         video = video,
                         themeColors = themeColors,
+                        playerPool = playerPool,
                         onClick = { onVideoClick(video) }
                     )
                 }
@@ -1467,22 +1523,34 @@ fun LocalVideoLibrary(
 fun LocalVideoCard(
     video: LocalVideo,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
+    playerPool: MutableMap<String, ExoPlayer>,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val exoPlayer = remember(video.uri) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(video.uri))
-            prepare()
-            volume = 0f
-            repeatMode = Player.REPEAT_MODE_ONE
+    val uriKey = video.uri.toString()
+
+    // 增量加载：从播放器池获取或创建播放器
+    val exoPlayer = remember(uriKey) {
+        playerPool.getOrPut(uriKey) {
+            ExoPlayer.Builder(context).build().apply {
+                setMediaItem(MediaItem.fromUri(video.uri))
+                prepare()
+                volume = 0f
+                repeatMode = Player.REPEAT_MODE_ONE
+            }
         }
     }
 
-    DisposableEffect(exoPlayer) {
+    // 不在这里释放，由 LocalVideoLibrary 的可见性检测统一管理
+    DisposableEffect(uriKey) {
         onDispose {
-            exoPlayer.release()
+            // 播放器由池管理，不在这里释放
         }
+    }
+
+    // 自动播放
+    LaunchedEffect(exoPlayer) {
+        exoPlayer.play()
     }
 
     Box(
