@@ -43,7 +43,7 @@
     <string name="feedback_content">反馈内容</string>
     <string name="submit">提交</string>
     <string name="user_guide">使用说明</string>
-    <string name="user_guide_content">1. 点击壁纸按钮选择本地视频。\n\n2. 点击历史卡片即可设为壁纸。\n\n3. 长按历史卡片可删除记录。\n\n4. 可在设置侧边栏中调整主题、图标显示和其他行为。</string>
+    <string name="user_guide_content">📱 快速开始\n\n• 首次使用：点击右上角壁纸按钮，选择视频后在系统设置中应用\n• 快速切换：直接点击历史记录或本地视频库中的视频卡片，即时切换壁纸（无需重启）\n\n🎬 视频管理\n\n• 历史记录：自动保存已设置的壁纸，点击即可快速切换\n• 长按删除：长按历史卡片可删除不需要的记录\n• 本地视频库：底部水平滚动查看设备中的所有视频\n• 显示/隐藏：点击底部按钮或向左滑动展开视频库\n\n🎨 个性化设置\n\n• 主题切换：侧边栏提供 4 种精美主题（经典/现代/优雅/活力）\n• 跟随系统：开启后自动适配系统深色/浅色模式\n• 音频控制：设置中可开启视频声音播放\n• 图标隐藏：可从启动器隐藏应用图标\n\n💡 实用技巧\n\n• 解锁全屏：开启后解锁设备时自动播放全屏视频\n• 自动隐藏：设置视频库自动隐藏时间（5/10/15秒）\n• 手动输入：侧边栏可直接输入视频文件路径\n• 滚动隐藏：滚动历史记录时视频库自动收起\n\n❓ 常见问题\n\n• 视频不显示？检查存储权限是否已授予\n• 切换不生效？首次使用需在系统设置中应用壁纸\n• 遇到问题？点击"报告错误"向我们反馈</string>
     <string name="close">关闭</string>
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
     <string name="preference_hide_icon_from_launcher" translatable="false">hide_icon_from_launcher</string>

@@ -99,6 +99,32 @@ cd Aurora
 
 ---
 
+## Project Structure
+
+```text
+Aurora/
+├── app/                    # Main application module
+├── assets/                 # Project assets (images, logos)
+├── docs/                   # Documentation files
+├── gradle/                 # Gradle wrapper files
+├── scripts/                # Utility scripts
+├── build.gradle.kts        # Root build configuration
+├── settings.gradle.kts     # Gradle settings with mirror configuration
+└── README.md              # This file
+```
+
+For detailed documentation, see the [docs/](docs/) directory:
+
+### Core Documentation
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and design patterns
+- [HOT_SWITCH.md](docs/HOT_SWITCH.md) - Video hot-switching technology
+- [RESOURCE_MANAGEMENT.md](docs/RESOURCE_MANAGEMENT.md) - Memory and resource optimization
+
+### Development Guides
+- [DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development environment setup and build process
+- [TESTING.md](docs/TESTING.md) - Testing strategy and execution guide
+- [API_REFERENCE.md](docs/API_REFERENCE.md) - Core API and component reference
+
 ## Technical Details
 
 ### Architecture

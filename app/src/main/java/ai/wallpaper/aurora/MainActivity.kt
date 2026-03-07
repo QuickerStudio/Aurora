@@ -76,6 +76,7 @@ import ai.wallpaper.aurora.service.UnlockWallpaperService
 import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
 import ai.wallpaper.aurora.ui.theme.getThemeColors
+import ai.wallpaper.aurora.ui.theme.getThemeAwareAuroraIcon
 import ai.wallpaper.aurora.data.WallpaperHistoryManager
 import ai.wallpaper.aurora.utils.LocalVideoScanner
 import ai.wallpaper.aurora.utils.LocalVideo
@@ -248,6 +249,15 @@ fun MainScreen(
     } else {
         null
     }
+
+    // 获取当前主题图标（根据系统主题或自定义主题）
+    val auroraIconRes = getThemeAwareAuroraIcon(
+        isDarkTheme = if (followSystemTheme) {
+            androidx.compose.foundation.isSystemInDarkTheme()
+        } else {
+            false // 自定义主题使用浅色图标
+        }
+    )
     val websiteButtonBackground = lerp(
         themeColors?.buttonBackground ?: MaterialTheme.colorScheme.primary,
         Color.White,
@@ -757,7 +767,7 @@ fun MainScreen(
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         Icon(
-                            painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                            painter = androidx.compose.ui.res.painterResource(auroraIconRes),
                             contentDescription = null,
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -850,7 +860,7 @@ fun MainScreen(
                                     )
                                 ) {
                                     Icon(
-                                        painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                                        painter = androidx.compose.ui.res.painterResource(auroraIconRes),
                                         contentDescription = stringResource(R.string.website),
                                         modifier = Modifier.size(20.dp),
                                         tint = Color.Unspecified
@@ -909,10 +919,16 @@ fun MainScreen(
                     Text(text = stringResource(R.string.user_guide))
                 },
                 text = {
-                    Text(
-                        text = stringResource(R.string.user_guide_content),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Column(
+                        modifier = Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.user_guide_content),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 },
                 confirmButton = {
                     TextButton(onClick = { showUserGuideDialog = false }) {
@@ -1008,7 +1024,7 @@ fun MainScreen(
 
                         // Aurora 图标
                         Icon(
-                            painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                            painter = androidx.compose.ui.res.painterResource(auroraIconRes),
                             contentDescription = "Aurora",
                             modifier = Modifier.size(48.dp),
                             tint = Color.Unspecified
@@ -1066,7 +1082,7 @@ fun MainScreen(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Icon(
-                                    painter = androidx.compose.ui.res.painterResource(R.drawable.aurora_icon),
+                                    painter = androidx.compose.ui.res.painterResource(auroraIconRes),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(180.dp)
