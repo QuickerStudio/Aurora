@@ -1,0 +1,327 @@
+---------------------------- PROCESS STARTED (27822) for package ai.wallpaper.aurora ----------------------------
+2026-03-07 22:57:00.302 27822-27846 TestRunner              ai.wallpaper.aurora                  I  started: test_createThreePlayers_shouldNotExceedLimit(ai.wallpaper.aurora.media.LRUPlayerPoolInstrumentedTest)
+2026-03-07 22:57:00.315 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 5MB / 256MB (Available: 251MB) | Players: 0
+2026-03-07 22:57:00.315 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: android.resource://ai.wallpaper.aurora/raw/sample_video_1 (pool size: 0)
+2026-03-07 22:57:00.380 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 6MB / 256MB (Available: 250MB) | Players: 0
+2026-03-07 22:57:00.382 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 6MB / 256MB (Available: 250MB) | Players: 1
+2026-03-07 22:57:00.382 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: android.resource://ai.wallpaper.aurora/raw/sample_video_2 (pool size: 1)
+2026-03-07 22:57:00.389 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 6MB / 256MB (Available: 250MB) | Players: 1
+2026-03-07 22:57:00.391 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 6MB / 256MB (Available: 250MB) | Players: 2
+2026-03-07 22:57:00.391 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: android.resource://ai.wallpaper.aurora/raw/sample_video_3 (pool size: 2)
+2026-03-07 22:57:00.397 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 6MB / 256MB (Available: 250MB) | Players: 2
+2026-03-07 22:57:00.404 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Releasing all players (count: 3)
+2026-03-07 22:57:00.411 27822-27846 TestRunner              ai.wallpaper.aurora                  I  finished: test_createThreePlayers_shouldNotExceedLimit(ai.wallpaper.aurora.media.LRUPlayerPoolInstrumentedTest)
+2026-03-07 22:57:00.414 27822-27846 TestRunner              ai.wallpaper.aurora                  I  started: test_rapidCreation_shouldHandleGracefully(ai.wallpaper.aurora.media.LRUPlayerPoolInstrumentedTest)
+2026-03-07 22:57:00.419 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 0
+2026-03-07 22:57:00.419 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_0 (pool size: 0)
+2026-03-07 22:57:00.424 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 0
+2026-03-07 22:57:00.428 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 1
+2026-03-07 22:57:00.428 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_1 (pool size: 1)
+2026-03-07 22:57:00.433 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 1
+2026-03-07 22:57:00.436 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 2
+2026-03-07 22:57:00.436 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_2 (pool size: 2)
+2026-03-07 22:57:00.441 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 2
+2026-03-07 22:57:00.446 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.446 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_3 (pool size: 3)
+2026-03-07 22:57:00.451 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.451 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_0
+2026-03-07 22:57:00.457 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.457 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_4 (pool size: 3)
+2026-03-07 22:57:00.462 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.462 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_1
+2026-03-07 22:57:00.467 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.467 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_5 (pool size: 3)
+2026-03-07 22:57:00.472 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.472 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_2
+2026-03-07 22:57:00.480 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.480 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_6 (pool size: 3)
+2026-03-07 22:57:00.485 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.485 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_3
+2026-03-07 22:57:00.490 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.490 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_7 (pool size: 3)
+2026-03-07 22:57:00.495 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.496 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_4
+2026-03-07 22:57:00.503 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.503 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_8 (pool size: 3)
+2026-03-07 22:57:00.509 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 7MB / 256MB (Available: 249MB) | Players: 3
+2026-03-07 22:57:00.509 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_5
+2026-03-07 22:57:00.513 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.513 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_9 (pool size: 3)
+2026-03-07 22:57:00.519 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.519 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_6
+2026-03-07 22:57:00.527 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.527 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_10 (pool size: 3)
+2026-03-07 22:57:00.533 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.533 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_7
+2026-03-07 22:57:00.539 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.539 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_11 (pool size: 3)
+2026-03-07 22:57:00.544 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.544 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_8
+2026-03-07 22:57:00.550 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.550 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_12 (pool size: 3)
+2026-03-07 22:57:00.555 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.555 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_9
+2026-03-07 22:57:00.562 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.562 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_13 (pool size: 3)
+2026-03-07 22:57:00.567 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.567 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_10
+2026-03-07 22:57:00.573 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.573 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_14 (pool size: 3)
+2026-03-07 22:57:00.579 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.579 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_11
+2026-03-07 22:57:00.585 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.585 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_15 (pool size: 3)
+2026-03-07 22:57:00.590 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.590 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_12
+2026-03-07 22:57:00.596 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.596 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_16 (pool size: 3)
+2026-03-07 22:57:00.601 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.601 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_13
+2026-03-07 22:57:00.610 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.610 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_17 (pool size: 3)
+2026-03-07 22:57:00.615 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.615 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_14
+2026-03-07 22:57:00.623 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 8MB / 256MB (Available: 248MB) | Players: 3
+2026-03-07 22:57:00.623 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_18 (pool size: 3)
+2026-03-07 22:57:00.627 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.627 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_15
+2026-03-07 22:57:00.633 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.633 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_19 (pool size: 3)
+2026-03-07 22:57:00.637 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.637 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_16
+2026-03-07 22:57:00.644 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.644 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_20 (pool size: 3)
+2026-03-07 22:57:00.648 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.648 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_17
+2026-03-07 22:57:00.653 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.653 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_21 (pool size: 3)
+2026-03-07 22:57:00.658 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.658 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_18
+2026-03-07 22:57:00.665 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.665 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_22 (pool size: 3)
+2026-03-07 22:57:00.670 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.671 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_19
+2026-03-07 22:57:00.676 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.676 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_23 (pool size: 3)
+2026-03-07 22:57:00.681 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.681 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_20
+2026-03-07 22:57:00.686 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.686 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_24 (pool size: 3)
+2026-03-07 22:57:00.691 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.691 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_21
+2026-03-07 22:57:00.696 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.697 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_25 (pool size: 3)
+2026-03-07 22:57:00.701 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.701 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_22
+2026-03-07 22:57:00.707 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.707 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_26 (pool size: 3)
+2026-03-07 22:57:00.711 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.711 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_23
+2026-03-07 22:57:00.717 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.717 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_27 (pool size: 3)
+2026-03-07 22:57:00.724 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 9MB / 256MB (Available: 247MB) | Players: 3
+2026-03-07 22:57:00.724 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_24
+2026-03-07 22:57:00.733 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 10MB / 256MB (Available: 246MB) | Players: 3
+2026-03-07 22:57:00.733 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_28 (pool size: 3)
+2026-03-07 22:57:00.740 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 10MB / 256MB (Available: 246MB) | Players: 3
+2026-03-07 22:57:00.740 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_25
+2026-03-07 22:57:00.748 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 10MB / 256MB (Available: 246MB) | Players: 3
+2026-03-07 22:57:00.748 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_29 (pool size: 3)
+2026-03-07 22:57:00.754 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 10MB / 256MB (Available: 246MB) | Players: 3
+2026-03-07 22:57:00.754 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_26
+2026-03-07 22:57:00.760 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 10MB / 256MB (Available: 246MB) | Players: 3
+2026-03-07 22:57:00.760 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_30 (pool size: 3)
+2026-03-07 22:57:00.765 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 10MB / 256MB (Available: 246MB) | Players: 3
+2026-03-07 22:57:01.232 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.232 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_18 (pool size: 3)
+2026-03-07 22:57:01.238 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.238 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_15
+2026-03-07 22:57:01.246 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.246 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_19 (pool size: 3)
+2026-03-07 22:57:01.253 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.253 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_16
+2026-03-07 22:57:01.261 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.261 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_20 (pool size: 3)
+2026-03-07 22:57:01.268 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.269 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_17
+2026-03-07 22:57:01.280 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.280 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_21 (pool size: 3)
+2026-03-07 22:57:01.286 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.286 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_18
+2026-03-07 22:57:01.294 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 14MB / 256MB (Available: 242MB) | Players: 3
+2026-03-07 22:57:01.294 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_22 (pool size: 3)
+2026-03-07 22:57:01.307 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.307 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_19
+2026-03-07 22:57:01.314 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.314 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_23 (pool size: 3)
+2026-03-07 22:57:01.321 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.321 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_20
+2026-03-07 22:57:01.328 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.328 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_24 (pool size: 3)
+2026-03-07 22:57:01.334 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.334 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_21
+2026-03-07 22:57:01.344 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.344 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_25 (pool size: 3)
+2026-03-07 22:57:01.352 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.352 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_22
+2026-03-07 22:57:01.360 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.360 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_26 (pool size: 3)
+2026-03-07 22:57:01.368 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.368 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_23
+2026-03-07 22:57:01.375 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.375 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_27 (pool size: 3)
+2026-03-07 22:57:01.383 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.383 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_24
+2026-03-07 22:57:01.393 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.393 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_28 (pool size: 3)
+2026-03-07 22:57:01.399 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.399 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_25
+2026-03-07 22:57:01.406 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.406 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_29 (pool size: 3)
+2026-03-07 22:57:01.411 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.411 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_26
+2026-03-07 22:57:01.419 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.419 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_30 (pool size: 3)
+2026-03-07 22:57:01.425 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.425 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_27
+2026-03-07 22:57:01.431 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.431 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_31 (pool size: 3)
+2026-03-07 22:57:01.436 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 15MB / 256MB (Available: 241MB) | Players: 3
+2026-03-07 22:57:01.436 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_28
+2026-03-07 22:57:01.443 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.443 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_32 (pool size: 3)
+2026-03-07 22:57:01.458 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.458 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_29
+2026-03-07 22:57:01.463 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.463 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_33 (pool size: 3)
+2026-03-07 22:57:01.469 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.469 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_30
+2026-03-07 22:57:01.474 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.474 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_34 (pool size: 3)
+2026-03-07 22:57:01.490 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.490 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_31
+2026-03-07 22:57:01.495 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.495 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_35 (pool size: 3)
+2026-03-07 22:57:01.501 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.501 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_32
+2026-03-07 22:57:01.514 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.514 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_36 (pool size: 3)
+2026-03-07 22:57:01.524 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.524 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_33
+2026-03-07 22:57:01.534 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.534 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_37 (pool size: 3)
+2026-03-07 22:57:01.539 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.539 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_34
+2026-03-07 22:57:01.545 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.545 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_38 (pool size: 3)
+2026-03-07 22:57:01.551 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.551 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_35
+2026-03-07 22:57:01.557 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.557 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_39 (pool size: 3)
+2026-03-07 22:57:01.560 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.560 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_36
+2026-03-07 22:57:01.565 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.565 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_40 (pool size: 3)
+2026-03-07 22:57:01.568 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.568 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_37
+2026-03-07 22:57:01.575 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 16MB / 256MB (Available: 240MB) | Players: 3
+2026-03-07 22:57:01.575 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_41 (pool size: 3)
+2026-03-07 22:57:01.577 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.577 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_38
+2026-03-07 22:57:01.583 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.583 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_42 (pool size: 3)
+2026-03-07 22:57:01.586 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.586 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_39
+2026-03-07 22:57:01.590 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.590 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_43 (pool size: 3)
+2026-03-07 22:57:01.593 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.593 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_40
+2026-03-07 22:57:01.599 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.599 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_44 (pool size: 3)
+2026-03-07 22:57:01.605 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.605 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_41
+2026-03-07 22:57:01.609 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.609 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_45 (pool size: 3)
+2026-03-07 22:57:01.614 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.615 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_42
+2026-03-07 22:57:01.621 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.621 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_46 (pool size: 3)
+2026-03-07 22:57:01.625 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.625 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_43
+2026-03-07 22:57:01.630 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.630 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_47 (pool size: 3)
+2026-03-07 22:57:01.634 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.634 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_44
+2026-03-07 22:57:01.640 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.640 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_48 (pool size: 3)
+2026-03-07 22:57:01.644 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.644 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_45
+2026-03-07 22:57:01.650 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.650 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_49 (pool size: 3)
+2026-03-07 22:57:01.655 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.656 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_46
+2026-03-07 22:57:01.660 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 17MB / 256MB (Available: 239MB) | Players: 3
+2026-03-07 22:57:01.660 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_50 (pool size: 3)
+2026-03-07 22:57:01.665 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.665 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_47
+2026-03-07 22:57:01.669 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.669 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_51 (pool size: 3)
+2026-03-07 22:57:01.674 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.674 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_48
+2026-03-07 22:57:01.681 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.681 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_52 (pool size: 3)
+2026-03-07 22:57:01.686 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.686 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_49
+2026-03-07 22:57:01.692 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.692 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_53 (pool size: 3)
+2026-03-07 22:57:01.697 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.697 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_50
+2026-03-07 22:57:01.703 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.703 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_54 (pool size: 3)
+2026-03-07 22:57:01.708 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.708 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_51
+2026-03-07 22:57:01.714 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 18MB / 256MB (Available: 238MB) | Players: 3
+2026-03-07 22:57:01.714 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_55 (pool size: 3)
+2026-03-07 22:57:03.260 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Releasing all players (count: 0)
+2026-03-07 22:57:03.261 27822-27846 TestRunner              ai.wallpaper.aurora                  I  finished: test_releaseAll_shouldFreeMemory(ai.wallpaper.aurora.media.LRUPlayerPoolInstrumentedTest)
+2026-03-07 22:57:03.269 27822-27846 TestRunner              ai.wallpaper.aurora                  I  started: test_createTenPlayers_shouldEvictOldest(ai.wallpaper.aurora.media.LRUPlayerPoolInstrumentedTest)
+2026-03-07 22:57:03.278 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 0
+2026-03-07 22:57:03.278 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_0 (pool size: 0)
+2026-03-07 22:57:03.289 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 0
+2026-03-07 22:57:03.293 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 1
+2026-03-07 22:57:03.293 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_1 (pool size: 1)
+2026-03-07 22:57:03.301 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 1
+2026-03-07 22:57:03.305 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 2
+2026-03-07 22:57:03.305 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_2 (pool size: 2)
+2026-03-07 22:57:03.314 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 2
+2026-03-07 22:57:03.319 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.319 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_3 (pool size: 3)
+2026-03-07 22:57:03.327 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.328 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_0
+2026-03-07 22:57:03.335 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.335 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_4 (pool size: 3)
+2026-03-07 22:57:03.341 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.341 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_1
+2026-03-07 22:57:03.347 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.347 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_5 (pool size: 3)
+2026-03-07 22:57:03.354 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.354 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_2
+2026-03-07 22:57:03.362 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.362 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_6 (pool size: 3)
+2026-03-07 22:57:03.367 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.367 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_3
+2026-03-07 22:57:03.376 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.376 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_7 (pool size: 3)
+2026-03-07 22:57:03.382 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.382 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_4
+2026-03-07 22:57:03.389 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 3MB / 256MB (Available: 253MB) | Players: 3
+2026-03-07 22:57:03.389 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_8 (pool size: 3)
+2026-03-07 22:57:03.394 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 4MB / 256MB (Available: 252MB) | Players: 3
+2026-03-07 22:57:03.394 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_5
+2026-03-07 22:57:03.400 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [Before creating player] Memory: 4MB / 256MB (Available: 252MB) | Players: 3
+2026-03-07 22:57:03.401 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Creating new player for URI: content://test/video_9 (pool size: 3)
+2026-03-07 22:57:03.404 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  [After creating player] Memory: 4MB / 256MB (Available: 252MB) | Players: 3
+2026-03-07 22:57:03.405 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Evicting player for URI: content://test/video_6
+2026-03-07 22:57:03.410 27822-27822 LRUPlayerPool           ai.wallpaper.aurora                  D  Releasing all players (count: 3)
+2026-03-07 22:57:03.415 27822-27846 TestRunner              ai.wallpaper.aurora                  I  finished: test_createTenPlayers_shouldEvictOldest(ai.wallpaper.aurora.media.LRUPlayerPoolInstrumentedTest)
+---------------------------- PROCESS ENDED (27822) for package ai.wallpaper.aurora ----------------------------

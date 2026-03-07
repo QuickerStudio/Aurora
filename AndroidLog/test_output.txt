@@ -1,0 +1,78 @@
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:bundleDebugClassesToRuntimeJar UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :app:processDebugJavaRes UP-TO-DATE
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///C:/Users/Quick/AndroidStudioProjects/Aurora/app/src/test/java/ai/wallpaper/aurora/media/VideoMediaProcessorLogicTest.kt:46:31 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ObsoleteCoroutinesApi' or '@OptIn(kotlinx.coroutines.ObsoleteCoroutinesApi::class)'
+w: file:///C:/Users/Quick/AndroidStudioProjects/Aurora/app/src/test/java/ai/wallpaper/aurora/media/VideoMediaProcessorLogicTest.kt:47:25 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ObsoleteCoroutinesApi' or '@OptIn(kotlinx.coroutines.ObsoleteCoroutinesApi::class)'
+w: file:///C:/Users/Quick/AndroidStudioProjects/Aurora/app/src/test/java/ai/wallpaper/aurora/media/VideoMediaProcessorLogicTest.kt:70:31 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ObsoleteCoroutinesApi' or '@OptIn(kotlinx.coroutines.ObsoleteCoroutinesApi::class)'
+w: file:///C:/Users/Quick/AndroidStudioProjects/Aurora/app/src/test/java/ai/wallpaper/aurora/media/VideoMediaProcessorLogicTest.kt:71:25 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ObsoleteCoroutinesApi' or '@OptIn(kotlinx.coroutines.ObsoleteCoroutinesApi::class)'
+w: file:///C:/Users/Quick/AndroidStudioProjects/Aurora/app/src/test/java/ai/wallpaper/aurora/media/VideoMediaProcessorLogicTest.kt:207:29 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+
+> Task :app:testDebugUnitTest
+
+VideoMediaProcessorTest > testReleaseAllPlayers_clearsPool FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:171
+
+VideoMediaProcessorTest > testActorQueue_doesNotLoseMessages FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:220
+
+VideoMediaProcessorTest > testHighFrequencyRequests_handlesGracefully FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:191
+
+VideoMediaProcessorTest > testReleasePlayer_removesSpecificPlayer FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:151
+
+VideoMediaProcessorTest > testConcurrentRequests_areSafe FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:126
+
+VideoMediaProcessorTest > testGetOrCreatePlayer_createsNewPlayer FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:71
+
+VideoMediaProcessorTest > testLRUEviction_evictsOldestPlayer FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:100
+
+VideoMediaProcessorTest > testGetOrCreatePlayer_reusesSamePlayer FAILED
+    java.lang.NullPointerException at VideoMediaProcessorTest.kt:85
+
+15 tests completed, 8 failed
+
+> Task :app:testDebugUnitTest FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///C:/Users/Quick/AndroidStudioProjects/Aurora/app/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 8s
+24 actionable tasks: 3 executed, 21 up-to-date

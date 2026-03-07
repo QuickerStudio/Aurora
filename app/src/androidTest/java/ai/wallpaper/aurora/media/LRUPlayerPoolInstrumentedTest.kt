@@ -4,6 +4,9 @@ import android.content.Context
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -31,15 +34,17 @@ class LRUPlayerPoolInstrumentedTest {
     }
 
     @After
-    fun tearDown() {
-        playerPool.releaseAll()
+    fun tearDown() = runBlocking {
+        withContext(Dispatchers.Main) {
+            playerPool.releaseAll()
+        }
     }
 
     /**
      * 测试1: 基本功能 - 创建3个播放器
      */
     @Test
-    fun test_createThreePlayers_shouldNotExceedLimit() {
+    fun test_createThreePlayers_shouldNotExceedLimit() = runBlocking {
         println("\n=== 测试1: 创建3个播放器 ===")
 
         val memoryBefore = getMemoryUsage()
@@ -51,11 +56,13 @@ class LRUPlayerPoolInstrumentedTest {
         }
 
         uris.forEachIndexed { index, uri ->
-            val player = playerPool.getOrCreate(uri.toString(), uri)
-            val currentMemory = getMemoryUsage()
-            println("创建播放器 ${index + 1}: 内存=${currentMemory}MB, 池大小=${playerPool.size()}")
+            withContext(Dispatchers.Main) {
+                val player = playerPool.getOrCreate(uri.toString(), uri)
+                val currentMemory = getMemoryUsage()
+                println("创建播放器 ${index + 1}: 内存=${currentMemory}MB, 池大小=${playerPool.size()}")
 
-            assertTrue("播放器数量不应超过3个", playerPool.size() <= 3)
+                assertTrue("播放器数量不应超过3个", playerPool.size() <= 3)
+            }
         }
 
         val memoryAfter = getMemoryUsage()
@@ -70,7 +77,7 @@ class LRUPlayerPoolInstrumentedTest {
      * 测试2: LRU 淘汰 - 创建10个播放器，验证淘汰
      */
     @Test
-    fun test_createTenPlayers_shouldEvictOldest() {
+    fun test_createTenPlayers_shouldEvictOldest() = runBlocking {
         println("\n=== 测试2: 创建10个播放器，验证LRU淘汰 ===")
 
         val memoryBefore = getMemoryUsage()
@@ -78,16 +85,18 @@ class LRUPlayerPoolInstrumentedTest {
 
         // 创建10个播放器
         repeat(10) { index ->
-            val uri = Uri.parse("content://test/video_$index")
-            playerPool.getOrCreate(uri.toString(), uri)
+            withContext(Dispatchers.Main) {
+                val uri = Uri.parse("content://test/video_$index")
+                playerPool.getOrCreate(uri.toString(), uri)
 
-            val currentMemory = getMemoryUsage()
-            val poolSize = playerPool.size()
+                val currentMemory = getMemoryUsage()
+                val poolSize = playerPool.size()
 
-            println("创建播放器 ${index + 1}: 内存=${currentMemory}MB, 池大小=${poolSize}")
+                println("创建播放器 ${index + 1}: 内存=${currentMemory}MB, 池大小=${poolSize}")
 
-            // 关键断言：池大小永远不超过3
-            assertTrue("第${index + 1}次创建后，池大小=${poolSize}，不应超过3", poolSize <= 3)
+                // 关键断言：池大小永远不超过3
+                assertTrue("第${index + 1}次创建后，池大小=${poolSize}，不应超过3", poolSize <= 3)
+            }
         }
 
         val memoryAfter = getMemoryUsage()
@@ -104,7 +113,7 @@ class LRUPlayerPoolInstrumentedTest {
      * 测试3: 快速连续创建 - 模拟快速滚动
      */
     @Test
-    fun test_rapidCreation_shouldHandleGracefully() {
+    fun test_rapidCreation_shouldHandleGracefully() = runBlocking {
         println("\n=== 测试3: 快速连续创建50个播放器 ===")
 
         val memoryBefore = getMemoryUsage()
@@ -114,15 +123,17 @@ class LRUPlayerPoolInstrumentedTest {
 
         // 快速创建50个播放器
         repeat(50) { index ->
-            val uri = Uri.parse("content://test/video_$index")
-            playerPool.getOrCreate(uri.toString(), uri)
+            withContext(Dispatchers.Main) {
+                val uri = Uri.parse("content://test/video_$index")
+                playerPool.getOrCreate(uri.toString(), uri)
 
-            if (index % 10 == 0) {
-                val currentMemory = getMemoryUsage()
-                println("创建了 ${index + 1} 个播放器: 内存=${currentMemory}MB, 池大小=${playerPool.size()}")
+                if (index % 10 == 0) {
+                    val currentMemory = getMemoryUsage()
+                    println("创建了 ${index + 1} 个播放器: 内存=${currentMemory}MB, 池大小=${playerPool.size()}")
+                }
+
+                assertTrue("快速创建时池大小也不应超过3", playerPool.size() <= 3)
             }
-
-            assertTrue("快速创建时池大小也不应超过3", playerPool.size() <= 3)
         }
 
         val endTime = System.currentTimeMillis()
@@ -143,7 +154,7 @@ class LRUPlayerPoolInstrumentedTest {
      * 测试4: 内存压力测试 - 持续创建100个播放器
      */
     @Test
-    fun test_memoryPressure_create100Players() {
+    fun test_memoryPressure_create100Players() = runBlocking {
         println("\n=== 测试4: 内存压力测试 - 100个播放器 ===")
 
         val memoryBefore = getMemoryUsage()
@@ -152,13 +163,15 @@ class LRUPlayerPoolInstrumentedTest {
         val memorySnapshots = mutableListOf<Int>()
 
         repeat(100) { index ->
-            val uri = Uri.parse("content://test/video_$index")
-            playerPool.getOrCreate(uri.toString(), uri)
+            withContext(Dispatchers.Main) {
+                val uri = Uri.parse("content://test/video_$index")
+                playerPool.getOrCreate(uri.toString(), uri)
 
-            if (index % 20 == 0) {
-                val currentMemory = getMemoryUsage()
-                memorySnapshots.add(currentMemory)
-                println("创建了 ${index + 1} 个: 内存=${currentMemory}MB, 池大小=${playerPool.size()}")
+                if (index % 20 == 0) {
+                    val currentMemory = getMemoryUsage()
+                    memorySnapshots.add(currentMemory)
+                    println("创建了 ${index + 1} 个: 内存=${currentMemory}MB, 池大小=${playerPool.size()}")
+                }
             }
         }
 
@@ -185,7 +198,7 @@ class LRUPlayerPoolInstrumentedTest {
      * 测试5: 释放功能测试
      */
     @Test
-    fun test_releaseAll_shouldFreeMemory() {
+    fun test_releaseAll_shouldFreeMemory() = runBlocking {
         println("\n=== 测试5: 释放功能测试 ===")
 
         val memoryBefore = getMemoryUsage()
@@ -193,15 +206,19 @@ class LRUPlayerPoolInstrumentedTest {
 
         // 创建3个播放器
         repeat(3) { index ->
-            val uri = Uri.parse("content://test/video_$index")
-            playerPool.getOrCreate(uri.toString(), uri)
+            withContext(Dispatchers.Main) {
+                val uri = Uri.parse("content://test/video_$index")
+                playerPool.getOrCreate(uri.toString(), uri)
+            }
         }
 
         val memoryAfterCreate = getMemoryUsage()
         println("创建后内存: ${memoryAfterCreate}MB, 池大小: ${playerPool.size()}")
 
         // 释放所有播放器
-        playerPool.releaseAll()
+        withContext(Dispatchers.Main) {
+            playerPool.releaseAll()
+        }
 
         // 强制 GC
         System.gc()

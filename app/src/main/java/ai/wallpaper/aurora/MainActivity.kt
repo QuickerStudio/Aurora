@@ -138,6 +138,9 @@ fun MainScreen(
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
     // 保存 hashCode 到原始 ID 的映射
     var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
+    // 历史记录显示数量（支持下拉加载更多）
+    var historyDisplayCount by remember { mutableStateOf(10) }
+    var isLoadingMoreHistory by remember { mutableStateOf(false) }
 
     // 历史卡片播放器池 - LRU 策略，最多 3 个播放器
     val historyPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
@@ -1046,6 +1049,23 @@ fun MainScreen(
                                 }
                         }
 
+                        // 监听滚动位置，接近底部时自动加载更多
+                        LaunchedEffect(gridState) {
+                            snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                                .collect { lastVisibleIndex ->
+                                    if (lastVisibleIndex != null && !isLoadingMoreHistory) {
+                                        val totalItems = historyDisplayCount
+                                        // 当滚动到倒数第3个时，加载更多
+                                        if (lastVisibleIndex >= totalItems - 3 && historyDisplayCount < videoList.size) {
+                                            isLoadingMoreHistory = true
+                                            kotlinx.coroutines.delay(100) // 短暂延迟避免频繁触发
+                                            historyDisplayCount = minOf(historyDisplayCount + 10, videoList.size)
+                                            isLoadingMoreHistory = false
+                                        }
+                                    }
+                                }
+                        }
+
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(2),
@@ -1056,8 +1076,8 @@ fun MainScreen(
                                 .weight(1f)
                                 .fillMaxWidth()
                         ) {
-                            // 只显示最近 10 个历史记录，减少 UI 负担和内存占用
-                            val displayedVideos = videoList.take(10)
+                            // 根据 historyDisplayCount 显示历史记录
+                            val displayedVideos = videoList.take(historyDisplayCount)
                             items(displayedVideos, key = { it.id }) { video ->
                                 VideoGridItem(
                                     video = video,
@@ -1083,6 +1103,8 @@ fun MainScreen(
                                             val (items, idMap) = loadHistoryVideoItems(context)
                                             videoList = items
                                             videoIdMap = idMap
+                                            // 重置显示数量
+                                            historyDisplayCount = minOf(10, items.size)
                                         }
                                     }
                                 )
