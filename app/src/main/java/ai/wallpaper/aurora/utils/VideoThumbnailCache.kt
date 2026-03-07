@@ -2,9 +2,12 @@ package ai.wallpaper.aurora.utils
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -18,6 +21,9 @@ object VideoThumbnailCache {
     private const val CACHE_DIR = "video_thumbnails"
     private const val THUMBNAIL_WIDTH = 240
     private const val THUMBNAIL_HEIGHT = 320
+    private const val PRIMARY_FRAME_TIME_US = 500_000L
+    private const val SECONDARY_FRAME_TIME_US = 1_000_000L
+    private val generationMutex = Mutex()
 
     /**
      * 获取视频缩略图，优先从缓存读取
@@ -29,16 +35,18 @@ object VideoThumbnailCache {
 
             // 优先从缓存读取
             if (cacheFile.exists()) {
-                return@withContext android.graphics.BitmapFactory.decodeFile(cacheFile.absolutePath)
+                return@withContext BitmapFactory.decodeFile(cacheFile.absolutePath)
             }
 
-            // 缓存不存在，生成缩略图
-            val thumbnail = extractThumbnail(context, videoUri)
+            generationMutex.withLock {
+                if (cacheFile.exists()) {
+                    return@withLock BitmapFactory.decodeFile(cacheFile.absolutePath)
+                }
 
-            // 保存到缓存
-            thumbnail?.let { saveThumbnail(cacheFile, it) }
-
-            thumbnail
+                val thumbnail = extractThumbnail(context, videoUri)
+                thumbnail?.let { saveThumbnail(cacheFile, it) }
+                thumbnail
+            }
         } catch (e: Exception) {
             android.util.Log.e("VideoThumbnailCache", "Failed to get thumbnail", e)
             null
@@ -46,15 +54,21 @@ object VideoThumbnailCache {
     }
 
     /**
-     * 从视频提取首帧缩略图
+     * 从视频提取缩略图，优先跳过开头黑帧
      */
     private fun extractThumbnail(context: Context, videoUri: Uri): Bitmap? {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, videoUri)
-            val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?: 0L
+            val safeFrameTimeUs = computeFrameTimeUs(durationMs)
 
-            // 缩放到目标尺寸以节省内存
+            val frame = retriever.getFrameAtTime(safeFrameTimeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.getFrameAtTime(SECONDARY_FRAME_TIME_US, MediaMetadataRetriever.OPTION_CLOSEST)
+                ?: retriever.getFrameAtTime(-1)
+
             frame?.let { scaleBitmap(it, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT) }
         } catch (e: Exception) {
             android.util.Log.e("VideoThumbnailCache", "Failed to extract thumbnail", e)
@@ -66,6 +80,12 @@ object VideoThumbnailCache {
                 android.util.Log.e("VideoThumbnailCache", "Failed to release retriever", e)
             }
         }
+    }
+
+    private fun computeFrameTimeUs(durationMs: Long): Long {
+        if (durationMs <= 0L) return PRIMARY_FRAME_TIME_US
+        val durationUs = durationMs * 1000L
+        return PRIMARY_FRAME_TIME_US.coerceAtMost((durationUs * 0.3f).toLong().coerceAtLeast(PRIMARY_FRAME_TIME_US))
     }
 
     /**

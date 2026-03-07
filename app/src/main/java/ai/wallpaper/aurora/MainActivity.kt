@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,6 +19,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,7 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -51,10 +53,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -80,6 +84,7 @@ import ai.wallpaper.aurora.ui.theme.getThemeAwareAuroraIcon
 import ai.wallpaper.aurora.data.WallpaperHistoryManager
 import ai.wallpaper.aurora.utils.LocalVideoScanner
 import ai.wallpaper.aurora.utils.LocalVideo
+import ai.wallpaper.aurora.utils.HistoryPreviewProcessor
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -207,7 +212,8 @@ class MainActivity : ComponentActivity() {
 data class VideoItem(
     val id: Int,
     val uri: Uri?,
-    val thumbnailUri: Uri? = null
+    val thumbnailUri: Uri? = null,
+    val previewBitmap: Bitmap? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -235,10 +241,12 @@ fun MainScreen(
 
     // 历史卡片播放器池 - LRU 策略，最多 3 个播放器
     val historyPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
+    val historyPreviewProcessor = remember { HistoryPreviewProcessor(context) }
 
     // 清理历史播放器池
     DisposableEffect(Unit) {
         onDispose {
+            historyPreviewProcessor.cancel()
             historyPlayerPool.releaseAll()
         }
     }
@@ -421,9 +429,31 @@ fun MainScreen(
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
             videoIdMap = idMap
+            historyPreviewProcessor.clear()
             // 重置显示数量
             historyDisplayCount = minOf(10, items.size)
         }
+    }
+
+    LaunchedEffect(videoList, historyDisplayCount) {
+        historyPreviewProcessor.submit(
+            items = videoList.take(historyDisplayCount).map { video ->
+                HistoryPreviewProcessor.PreviewRequest(
+                    id = video.id,
+                    uri = video.uri,
+                    hasPreview = video.previewBitmap != null
+                )
+            },
+            onPreviewReady = { id, uri, bitmap ->
+                videoList = videoList.map { item ->
+                    if (item.id == id && item.uri == uri && item.previewBitmap == null) {
+                        item.copy(previewBitmap = bitmap)
+                    } else {
+                        item
+                    }
+                }
+            }
+        )
     }
 
     ModalNavigationDrawer(
@@ -1303,7 +1333,7 @@ fun MainScreen(
                         ) {
                             // 根据 historyDisplayCount 显示历史记录
                             val displayedVideos = videoList.take(historyDisplayCount)
-                            items(displayedVideos, key = { it.id }) { video ->
+                            itemsIndexed(displayedVideos, key = { _, video -> video.id }) { _, video ->
                                 VideoGridItem(
                                     video = video,
                                     isSelected = selectedVideoId == video.id,
@@ -1333,6 +1363,7 @@ fun MainScreen(
                                             val (items, idMap) = loadHistoryVideoItems(context)
                                             videoList = items
                                             videoIdMap = idMap
+                                            historyPreviewProcessor.clear()
                                             // 重置显示数量
                                             historyDisplayCount = minOf(10, items.size)
                                         }
@@ -1392,6 +1423,7 @@ fun MainScreen(
                                 )
                             }
                             videoIdMap = idMap
+                            historyPreviewProcessor.clear()
                         }
                     )
                 }
@@ -1410,7 +1442,6 @@ fun VideoGridItem(
     onVideoClick: (Uri?) -> Unit = {},
     onVideoLongPress: (Int) -> Unit = {}
 ) {
-    val context = LocalContext.current
     var isDeleting by remember { mutableStateOf(false) }
 
     // 删除动画状态
@@ -1486,25 +1517,49 @@ fun VideoGridItem(
                 )
             }
     ) {
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = false
-                    layoutParams = android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        if (isSelected && exoPlayer != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                update = { view ->
+                    view.player = exoPlayer
+                },
+                onRelease = { view ->
+                    view.player = null
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            val previewBitmap = video.previewBitmap
+            if (previewBitmap != null) {
+                Image(
+                    bitmap = previewBitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-            },
-            update = { view ->
-                view.player = exoPlayer
-            },
-            onRelease = { view ->
-                view.player = null
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+            }
+        }
     }
 }
 
