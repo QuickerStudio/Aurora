@@ -16,7 +16,7 @@ import androidx.core.content.ContextCompat
 import java.io.File
 
 /**
- * 视频动态壁纸服务 - 基于母版架构，对齐 Android 16/API 36
+ * 壁纸服务 - 支持视频动态壁纸
  *
  * 设计原则：
  * 1. 文件通信：通过 video_live_wallpaper_file_path 文件读取视频路径

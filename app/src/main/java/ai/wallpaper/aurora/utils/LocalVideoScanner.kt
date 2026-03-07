@@ -50,6 +50,7 @@ object LocalVideoScanner {
                 val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
                 val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
                 val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
 
                 var index = 0
                 while (cursor.moveToNext()) {
@@ -61,6 +62,7 @@ object LocalVideoScanner {
                     val duration = cursor.getLong(durationColumn)
                     val size = cursor.getLong(sizeColumn)
                     val mimeType = cursor.getString(mimeTypeColumn) ?: ""
+                    val dateAdded = cursor.getLong(dateAddedColumn)
 
                     val contentUri = Uri.withAppendedPath(
                         MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
@@ -74,7 +76,9 @@ object LocalVideoScanner {
                             displayName = name,
                             duration = duration,
                             size = size,
-                            mimeType = mimeType
+                            mimeType = mimeType,
+                            mediaType = MediaType.VIDEO,
+                            dateAdded = dateAdded
                         )
                     )
                 }
@@ -88,7 +92,15 @@ object LocalVideoScanner {
 }
 
 /**
- * 本地视频数据模型
+ * 媒体类型
+ */
+enum class MediaType {
+    VIDEO,
+    IMAGE
+}
+
+/**
+ * 本地媒体数据模型
  */
 data class LocalVideo(
     val id: Long,
@@ -96,5 +108,7 @@ data class LocalVideo(
     val displayName: String,
     val duration: Long,
     val size: Long,
-    val mimeType: String
+    val mimeType: String,
+    val mediaType: MediaType = MediaType.VIDEO,
+    val dateAdded: Long = 0L
 )

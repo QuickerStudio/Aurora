@@ -77,6 +77,7 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.AspectRatioFrameLayout
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import ai.wallpaper.aurora.service.UnlockWallpaperService
 import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
@@ -84,7 +85,9 @@ import ai.wallpaper.aurora.ui.theme.getThemeColors
 import ai.wallpaper.aurora.ui.theme.getThemeAwareAuroraIcon
 import ai.wallpaper.aurora.data.WallpaperHistoryManager
 import ai.wallpaper.aurora.utils.LocalVideoScanner
+import ai.wallpaper.aurora.utils.LocalImageScanner
 import ai.wallpaper.aurora.utils.LocalVideo
+import ai.wallpaper.aurora.utils.MediaType
 import ai.wallpaper.aurora.utils.HistoryPreviewProcessor
 import ai.wallpaper.aurora.utils.VideoThumbnailCache
 import java.io.File
@@ -215,7 +218,8 @@ data class VideoItem(
     val id: Int,
     val uri: Uri?,
     val thumbnailUri: Uri? = null,
-    val previewBitmap: Bitmap? = null
+    val previewBitmap: Bitmap? = null,
+    val mediaType: MediaType = MediaType.VIDEO
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -370,13 +374,20 @@ fun MainScreen(
 
     // 权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
             scope.launch {
                 isLoadingLocalVideos = true
-                localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
-                localVideoOffset = localVideos.size
+                // 并行扫描视频和图片
+                val videosDeferred = async { LocalVideoScanner.scanVideos(context, offset = 0, limit = 100) }
+                val imagesDeferred = async { LocalImageScanner.scanImages(context, offset = 0, limit = 100) }
+                // 合并并按时间排序，取前20个
+                localVideos = (videosDeferred.await() + imagesDeferred.await())
+                    .sortedByDescending { it.dateAdded }
+                    .take(20)
+                localVideoOffset = 20
                 isLoadingLocalVideos = false
             }
         }
@@ -403,9 +414,12 @@ fun MainScreen(
     LaunchedEffect(Unit) {
         // 请求权限
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
+            permissionLauncher.launch(arrayOf(
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_IMAGES
+            ))
         } else {
-            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
         }
 
         // 从历史记录加载视频列表
@@ -415,15 +429,22 @@ fun MainScreen(
 
         // 仅在权限已存在时加载本地视频库
         val hasVideoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+            context.checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED &&
+            context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
         } else {
             context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
 
         if (hasVideoPermission) {
             isLoadingLocalVideos = true
-            localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 20)
-            localVideoOffset = localVideos.size
+            // 并行扫描视频和图片
+            val videosDeferred = async { LocalVideoScanner.scanVideos(context, offset = 0, limit = 100) }
+            val imagesDeferred = async { LocalImageScanner.scanImages(context, offset = 0, limit = 100) }
+            // 合并并按时间排序，取前20个
+            localVideos = (videosDeferred.await() + imagesDeferred.await())
+                .sortedByDescending { it.dateAdded }
+                .take(20)
+            localVideoOffset = 20
             isLoadingLocalVideos = false
         }
     }
@@ -1403,14 +1424,34 @@ fun MainScreen(
                                     },
                                     onVideoClick = { videoUri ->
                                         videoUri?.let { uri ->
-                                            saveVideoPath(context, uri.toString())
+                                            // 从videoList中找到对应的VideoItem获取mediaType
+                                            val videoItem = displayedVideos.find { it.uri == uri }
 
-                                            // 如果壁纸未激活，打开设置界面
-                                            if (!isAuroraWallpaperActive(context)) {
-                                                VideoLiveWallpaperService.setToWallPaper(context)
+                                            if (videoItem?.mediaType == MediaType.IMAGE) {
+                                                // 图片：直接设置为静态壁纸
+                                                scope.launch {
+                                                    try {
+                                                        val wallpaperManager = android.app.WallpaperManager.getInstance(context)
+                                                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                                                            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                                                            wallpaperManager.setBitmap(bitmap)
+                                                            bitmap.recycle()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("MainActivity", "Failed to set image wallpaper", e)
+                                                    }
+                                                }
                                             } else {
-                                                // 如果壁纸已激活，发送广播通知切换视频
-                                                VideoLiveWallpaperService.notifyVideoPathChanged(context)
+                                                // 视频：使用Live Wallpaper服务
+                                                saveVideoPath(context, uri.toString())
+
+                                                // 如果壁纸未激活，打开设置界面
+                                                if (!isAuroraWallpaperActive(context)) {
+                                                    VideoLiveWallpaperService.setToWallPaper(context)
+                                                } else {
+                                                    // 如果壁纸已激活，发送广播通知切换视频
+                                                    VideoLiveWallpaperService.notifyVideoPathChanged(context)
+                                                }
                                             }
                                         }
                                     },
@@ -1448,34 +1489,69 @@ fun MainScreen(
                             scope.launch {
                                 if (!isLoadingLocalVideos) {
                                     isLoadingLocalVideos = true
-                                    val newVideos = LocalVideoScanner.scanVideos(
-                                        context,
-                                        offset = localVideoOffset,
-                                        limit = 20
-                                    )
-                                    localVideos = localVideos + newVideos
+                                    // 并行扫描更多视频和图片
+                                    val videosDeferred = async {
+                                        LocalVideoScanner.scanVideos(context, offset = 0, limit = localVideoOffset + 100)
+                                    }
+                                    val imagesDeferred = async {
+                                        LocalImageScanner.scanImages(context, offset = 0, limit = localVideoOffset + 100)
+                                    }
+                                    // 合并并按时间排序
+                                    val allMedia = (videosDeferred.await() + imagesDeferred.await())
+                                        .sortedByDescending { it.dateAdded }
+                                    // 取新的20个
+                                    localVideos = allMedia.take(localVideoOffset + 20)
                                     localVideoOffset += 20
                                     isLoadingLocalVideos = false
                                 }
                             }
                         },
                         onVideoClick = { video ->
-                            saveVideoUri(context, video.uri)
-
-                            // 如果壁纸未激活，打开设置界面
-                            if (!isAuroraWallpaperActive(context)) {
-                                VideoLiveWallpaperService.setToWallPaper(context)
+                            if (video.mediaType == MediaType.IMAGE) {
+                                // 图片：直接设置为静态壁纸
+                                scope.launch {
+                                    try {
+                                        val wallpaperManager = android.app.WallpaperManager.getInstance(context)
+                                        context.contentResolver.openInputStream(video.uri)?.use { inputStream ->
+                                            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                                            wallpaperManager.setBitmap(bitmap)
+                                            bitmap.recycle()
+                                        }
+                                        // 添加到历史记录
+                                        WallpaperHistoryManager.addHistory(
+                                            context,
+                                            video.uri,
+                                            video.displayName,
+                                            MediaType.IMAGE
+                                        )
+                                        // 刷新历史列表
+                                        val (items, idMap) = loadHistoryVideoItems(context)
+                                        videoList = items
+                                        videoIdMap = idMap
+                                        historyPreviewProcessor.clear()
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("MainActivity", "Failed to set image wallpaper", e)
+                                    }
+                                }
                             } else {
-                                // 如果壁纸已激活，发送广播通知切换视频
-                                VideoLiveWallpaperService.notifyVideoPathChanged(context)
-                            }
+                                // 视频：使用Live Wallpaper服务
+                                saveVideoUri(context, video.uri)
 
-                            // 刷新历史列表
-                            isLocalLibraryVisible = true
-                            val (items, idMap) = loadHistoryVideoItems(context)
-                            videoList = items
-                            videoIdMap = idMap
-                            historyPreviewProcessor.clear()
+                                // 如果壁纸未激活，打开设置界面
+                                if (!isAuroraWallpaperActive(context)) {
+                                    VideoLiveWallpaperService.setToWallPaper(context)
+                                } else {
+                                    // 如果壁纸已激活，发送广播通知切换视频
+                                    VideoLiveWallpaperService.notifyVideoPathChanged(context)
+                                }
+
+                                // 刷新历史列表
+                                isLocalLibraryVisible = true
+                                val (items, idMap) = loadHistoryVideoItems(context)
+                                videoList = items
+                                videoIdMap = idMap
+                                historyPreviewProcessor.clear()
+                            }
                         }
                     )
                 }
@@ -1647,7 +1723,8 @@ private fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<I
         idMap[hashId] = item.id
         VideoItem(
             id = hashId,
-            uri = Uri.parse(item.videoUri)
+            uri = Uri.parse(item.videoUri),
+            mediaType = item.mediaType
         )
     }
     return items to idMap

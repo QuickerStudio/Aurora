@@ -1,5 +1,6 @@
 package ai.wallpaper.aurora.data
 
+import ai.wallpaper.aurora.utils.MediaType
 import android.content.Context
 import android.net.Uri
 import org.json.JSONArray
@@ -13,7 +14,8 @@ data class WallpaperHistoryItem(
     val id: String,
     val videoUri: String,
     val timestamp: Long,
-    val displayName: String? = null
+    val displayName: String? = null,
+    val mediaType: MediaType = MediaType.VIDEO
 )
 
 /**
@@ -27,7 +29,7 @@ object WallpaperHistoryManager {
      * 添加壁纸历史记录
      * 如果已存在相同的 URI，则不添加（避免热切换时重复添加）
      */
-    fun addHistory(context: Context, videoUri: Uri, displayName: String? = null) {
+    fun addHistory(context: Context, videoUri: Uri, displayName: String? = null, mediaType: MediaType = MediaType.VIDEO) {
         val history = loadHistory(context).toMutableList()
         val uriString = videoUri.toString()
 
@@ -42,7 +44,8 @@ object WallpaperHistoryManager {
             id = System.currentTimeMillis().toString(),
             videoUri = uriString,
             timestamp = System.currentTimeMillis(),
-            displayName = displayName
+            displayName = displayName,
+            mediaType = mediaType
         )
 
         // 移除旧的相同 URI 记录（如果存在）
@@ -76,11 +79,19 @@ object WallpaperHistoryManager {
             (0 until jsonArray.length()).mapNotNull { index ->
                 try {
                     val jsonObject = jsonArray.getJSONObject(index)
+                    val mediaTypeString = jsonObject.optString("mediaType", "VIDEO")
+                    val mediaType = try {
+                        MediaType.valueOf(mediaTypeString)
+                    } catch (e: Exception) {
+                        MediaType.VIDEO
+                    }
+
                     WallpaperHistoryItem(
                         id = jsonObject.getString("id"),
                         videoUri = jsonObject.getString("videoUri"),
                         timestamp = jsonObject.getLong("timestamp"),
-                        displayName = jsonObject.optString("displayName", null)
+                        displayName = if (jsonObject.has("displayName")) jsonObject.getString("displayName") else null,
+                        mediaType = mediaType
                     )
                 } catch (e: Exception) {
                     null
@@ -103,6 +114,7 @@ object WallpaperHistoryManager {
                     put("id", item.id)
                     put("videoUri", item.videoUri)
                     put("timestamp", item.timestamp)
+                    put("mediaType", item.mediaType.name)
                     item.displayName?.let { put("displayName", it) }
                 }
                 jsonArray.put(jsonObject)
