@@ -19,8 +19,8 @@ import java.security.MessageDigest
  */
 object VideoThumbnailCache {
     private const val CACHE_DIR = "video_thumbnails"
-    private const val THUMBNAIL_WIDTH = 240
-    private const val THUMBNAIL_HEIGHT = 320
+    private const val MAX_THUMBNAIL_WIDTH = 240
+    private const val MAX_THUMBNAIL_HEIGHT = 320
     private const val PRIMARY_FRAME_TIME_US = 500_000L
     private const val SECONDARY_FRAME_TIME_US = 1_000_000L
     private val generationMutex = Mutex()
@@ -69,7 +69,7 @@ object VideoThumbnailCache {
                 ?: retriever.getFrameAtTime(SECONDARY_FRAME_TIME_US, MediaMetadataRetriever.OPTION_CLOSEST)
                 ?: retriever.getFrameAtTime(-1)
 
-            frame?.let { scaleBitmap(it, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT) }
+            frame?.let { scaleBitmapPreservingAspectRatio(it, MAX_THUMBNAIL_WIDTH, MAX_THUMBNAIL_HEIGHT) }
         } catch (e: Exception) {
             android.util.Log.e("VideoThumbnailCache", "Failed to extract thumbnail", e)
             null
@@ -89,9 +89,27 @@ object VideoThumbnailCache {
     }
 
     /**
-     * 缩放 Bitmap 到目标尺寸
+     * 将 Bitmap 等比缩放到目标边界内
      */
-    private fun scaleBitmap(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {
+    private fun scaleBitmapPreservingAspectRatio(source: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return source
+        }
+
+        val widthScale = maxWidth.toFloat() / sourceWidth.toFloat()
+        val heightScale = maxHeight.toFloat() / sourceHeight.toFloat()
+        val scale = minOf(widthScale, heightScale, 1f)
+
+        if (scale >= 1f) {
+            return source
+        }
+
+        val targetWidth = (sourceWidth * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (sourceHeight * scale).toInt().coerceAtLeast(1)
+
         return Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true).also {
             if (it != source) {
                 source.recycle()
@@ -110,6 +128,46 @@ object VideoThumbnailCache {
             }
         } catch (e: Exception) {
             android.util.Log.e("VideoThumbnailCache", "Failed to save thumbnail", e)
+        }
+    }
+
+    fun deleteThumbnail(context: Context, videoUri: Uri) {
+        try {
+            getCacheFile(context, generateCacheKey(videoUri)).takeIf { it.exists() }?.delete()
+        } catch (e: Exception) {
+            android.util.Log.e("VideoThumbnailCache", "Failed to delete thumbnail", e)
+        }
+    }
+
+    fun pruneCache(context: Context, retainedUris: Collection<Uri>) {
+        pruneCacheByKey(context, retainedUris.mapTo(hashSetOf()) { generateCacheKey(it) })
+    }
+
+    fun pruneCacheByUriString(context: Context, retainedUriStrings: Collection<String>) {
+        pruneCacheByKey(
+            context,
+            retainedUriStrings.asSequence()
+                .filter { it.isNotBlank() }
+                .map { generateCacheKey(Uri.parse(it)) }
+                .toHashSet()
+        )
+    }
+
+    private fun pruneCacheByKey(context: Context, retainedKeys: Set<String>) {
+        try {
+            val cacheDir = File(context.cacheDir, CACHE_DIR)
+            if (!cacheDir.exists()) return
+
+            cacheDir.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    val fileKey = file.nameWithoutExtension
+                    if (fileKey !in retainedKeys) {
+                        file.delete()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("VideoThumbnailCache", "Failed to prune cache", e)
         }
     }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -11,23 +12,32 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.LinkedHashMap
 
-class HistoryPreviewProcessor(context: Context) {
+class HistoryPreviewProcessor(
+    context: Context,
+    private val workerDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate
+) {
     private val appContext = context.applicationContext
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val pendingItems = LinkedHashMap<Int, Uri>()
-    private val failedIds = mutableSetOf<Int>()
+    private val scope = CoroutineScope(SupervisorJob() + workerDispatcher)
+    private val pendingItems = LinkedHashMap<String, PreviewRequest>()
+    private val failedKeys = mutableSetOf<String>()
     private var workerRunning = false
 
     fun submit(items: List<PreviewRequest>, onPreviewReady: (Int, Uri, Bitmap) -> Unit) {
         synchronized(this) {
-            val activeIds = items.mapTo(linkedSetOf()) { it.id }
-            pendingItems.keys.retainAll(activeIds)
-            failedIds.retainAll(activeIds)
+            val activeKeys = items.mapTo(linkedSetOf()) { it.stableKey }
+            pendingItems.keys.retainAll(activeKeys)
+            failedKeys.retainAll(activeKeys)
 
             items.forEach { item ->
-                if (item.hasPreview || item.id in failedIds) return@forEach
                 val uri = item.uri ?: return@forEach
-                pendingItems.putIfAbsent(item.id, uri)
+                if (item.hasPreview) {
+                    pendingItems.remove(item.stableKey)
+                    failedKeys.remove(item.stableKey)
+                    return@forEach
+                }
+                if (item.stableKey in failedKeys) return@forEach
+                pendingItems[item.stableKey] = item.copy(uri = uri)
             }
 
             if (workerRunning || pendingItems.isEmpty()) {
@@ -43,23 +53,23 @@ class HistoryPreviewProcessor(context: Context) {
                         val entry = pendingItems.entries.firstOrNull()
                         if (entry != null) {
                             pendingItems.remove(entry.key)
-                            entry.key to entry.value
+                            entry.value
                         } else {
                             workerRunning = false
                             null
                         }
                     } ?: break
 
-                    val (id, uri) = next
+                    val uri = next.uri ?: continue
                     try {
                         val thumbnail = VideoThumbnailCache.getThumbnail(appContext, uri)
                         if (thumbnail != null) {
-                            launch(Dispatchers.Main.immediate) {
-                                onPreviewReady(id, uri, thumbnail)
+                            launch(mainDispatcher) {
+                                onPreviewReady(next.id, uri, thumbnail)
                             }
                         } else {
                             synchronized(this@HistoryPreviewProcessor) {
-                                failedIds.add(id)
+                                failedKeys.add(next.stableKey)
                             }
                         }
                     } catch (cancelled: CancellationException) {
@@ -67,7 +77,7 @@ class HistoryPreviewProcessor(context: Context) {
                     } catch (e: Exception) {
                         android.util.Log.e("HistoryPreviewProcessor", "Failed to generate preview for $uri", e)
                         synchronized(this@HistoryPreviewProcessor) {
-                            failedIds.add(id)
+                            failedKeys.add(next.stableKey)
                         }
                     }
                 }
@@ -84,7 +94,7 @@ class HistoryPreviewProcessor(context: Context) {
     fun clear() {
         synchronized(this) {
             pendingItems.clear()
-            failedIds.clear()
+            failedKeys.clear()
         }
     }
 
@@ -97,5 +107,7 @@ class HistoryPreviewProcessor(context: Context) {
         val id: Int,
         val uri: Uri?,
         val hasPreview: Boolean
-    )
+    ) {
+        val stableKey: String = "$id|${uri?.toString().orEmpty()}"
+    }
 }

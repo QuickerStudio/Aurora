@@ -85,6 +85,7 @@ import ai.wallpaper.aurora.data.WallpaperHistoryManager
 import ai.wallpaper.aurora.utils.LocalVideoScanner
 import ai.wallpaper.aurora.utils.LocalVideo
 import ai.wallpaper.aurora.utils.HistoryPreviewProcessor
+import ai.wallpaper.aurora.utils.VideoThumbnailCache
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -391,6 +392,7 @@ fun MainScreen(
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
             videoIdMap = idMap
+            syncHistoryThumbnailCache(context, items)
         }
     }
 
@@ -406,6 +408,7 @@ fun MainScreen(
         val (items, idMap) = loadHistoryVideoItems(context)
         videoList = items
         videoIdMap = idMap
+        syncHistoryThumbnailCache(context, items)
 
         // 仅在权限已存在时加载本地视频库
         val hasVideoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -429,31 +432,11 @@ fun MainScreen(
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
             videoIdMap = idMap
+            syncHistoryThumbnailCache(context, items)
             historyPreviewProcessor.clear()
             // 重置显示数量
             historyDisplayCount = minOf(10, items.size)
         }
-    }
-
-    LaunchedEffect(videoList, historyDisplayCount) {
-        historyPreviewProcessor.submit(
-            items = videoList.take(historyDisplayCount).map { video ->
-                HistoryPreviewProcessor.PreviewRequest(
-                    id = video.id,
-                    uri = video.uri,
-                    hasPreview = video.previewBitmap != null
-                )
-            },
-            onPreviewReady = { id, uri, bitmap ->
-                videoList = videoList.map { item ->
-                    if (item.id == id && item.uri == uri && item.previewBitmap == null) {
-                        item.copy(previewBitmap = bitmap)
-                    } else {
-                        item
-                    }
-                }
-            }
-        )
     }
 
     ModalNavigationDrawer(
@@ -1293,6 +1276,39 @@ fun MainScreen(
                     } else {
                         // 视频网格
                         val gridState = rememberLazyGridState()
+                        val displayedVideos = remember(videoList, historyDisplayCount) {
+                            videoList.take(historyDisplayCount)
+                        }
+
+                        LaunchedEffect(displayedVideos, gridState) {
+                            snapshotFlow {
+                                gridState.layoutInfo.visibleItemsInfo
+                                    .mapNotNull { itemInfo -> displayedVideos.getOrNull(itemInfo.index) }
+                            }.collect { visibleVideos ->
+                                val prioritizedVideos = LinkedHashSet<VideoItem>()
+                                visibleVideos.forEach { prioritizedVideos.add(it) }
+                                displayedVideos.forEach { prioritizedVideos.add(it) }
+
+                                historyPreviewProcessor.submit(
+                                    items = prioritizedVideos.map { video ->
+                                        HistoryPreviewProcessor.PreviewRequest(
+                                            id = video.id,
+                                            uri = video.uri,
+                                            hasPreview = video.previewBitmap != null
+                                        )
+                                    },
+                                    onPreviewReady = { id, uri, bitmap ->
+                                        videoList = videoList.map { item ->
+                                            if (item.id == id && item.uri == uri && item.previewBitmap == null) {
+                                                item.copy(previewBitmap = bitmap)
+                                            } else {
+                                                item
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
 
                         // 监听滚动事件，滚动时隐藏本地视频库
                         LaunchedEffect(gridState) {
@@ -1331,8 +1347,6 @@ fun MainScreen(
                                 .weight(1f)
                                 .fillMaxWidth()
                         ) {
-                            // 根据 historyDisplayCount 显示历史记录
-                            val displayedVideos = videoList.take(historyDisplayCount)
                             itemsIndexed(displayedVideos, key = { _, video -> video.id }) { _, video ->
                                 VideoGridItem(
                                     video = video,
@@ -1360,9 +1374,11 @@ fun MainScreen(
                                         val originalId = videoIdMap[videoId]
                                         originalId?.let { id ->
                                             WallpaperHistoryManager.deleteHistory(context, id)
+                                            video.uri?.let { VideoThumbnailCache.deleteThumbnail(context, it) }
                                             val (items, idMap) = loadHistoryVideoItems(context)
                                             videoList = items
                                             videoIdMap = idMap
+                                            syncHistoryThumbnailCache(context, items)
                                             historyPreviewProcessor.clear()
                                             // 重置显示数量
                                             historyDisplayCount = minOf(10, items.size)
@@ -1412,17 +1428,10 @@ fun MainScreen(
 
                             // 刷新历史列表
                             isLocalLibraryVisible = true
-                            val history = WallpaperHistoryManager.loadHistory(context)
-                            val idMap = mutableMapOf<Int, String>()
-                            videoList = history.map { item ->
-                                val hashId = item.id.hashCode()
-                                idMap[hashId] = item.id
-                                VideoItem(
-                                    id = hashId,
-                                    uri = Uri.parse(item.videoUri)
-                                )
-                            }
+                            val (items, idMap) = loadHistoryVideoItems(context)
+                            videoList = items
                             videoIdMap = idMap
+                            syncHistoryThumbnailCache(context, items)
                             historyPreviewProcessor.clear()
                         }
                     )
@@ -1540,12 +1549,19 @@ fun VideoGridItem(
         } else {
             val previewBitmap = video.previewBitmap
             if (previewBitmap != null) {
-                Image(
-                    bitmap = previewBitmap.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = previewBitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             } else {
                 Box(
                     modifier = Modifier
@@ -1567,6 +1583,10 @@ private fun isAuroraWallpaperActive(context: Context): Boolean {
     val wallpaperInfo = android.app.WallpaperManager.getInstance(context).wallpaperInfo ?: return false
     return wallpaperInfo.packageName == context.packageName &&
         wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
+}
+
+private fun syncHistoryThumbnailCache(context: Context, items: List<VideoItem>) {
+    VideoThumbnailCache.pruneCache(context, items.mapNotNull { it.uri })
 }
 
 private fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
