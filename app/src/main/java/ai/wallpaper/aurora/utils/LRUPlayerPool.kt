@@ -35,8 +35,11 @@ class LRUPlayerPool(
      */
     fun getOrCreate(uriKey: String, videoUri: android.net.Uri): ExoPlayer {
         return pool.getOrPut(uriKey) {
+            logMemoryUsage("Before creating player")
             android.util.Log.d("LRUPlayerPool", "Creating new player for URI: $uriKey (pool size: ${pool.size})")
-            createPlayer(videoUri)
+            val player = createPlayer(videoUri)
+            logMemoryUsage("After creating player")
+            player
         }
     }
 
@@ -103,4 +106,19 @@ class LRUPlayerPool(
      * 检查是否包含指定 URI 的播放器
      */
     fun contains(uriKey: String): Boolean = pool.containsKey(uriKey)
+
+    /**
+     * 记录内存使用情况
+     */
+    private fun logMemoryUsage(tag: String) {
+        val runtime = Runtime.getRuntime()
+        val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024
+        val maxMemory = runtime.maxMemory() / 1024 / 1024
+        val availableMemory = maxMemory - usedMemory
+
+        android.util.Log.d(
+            "LRUPlayerPool",
+            "[$tag] Memory: ${usedMemory}MB / ${maxMemory}MB (Available: ${availableMemory}MB) | Players: ${pool.size}"
+        )
+    }
 }

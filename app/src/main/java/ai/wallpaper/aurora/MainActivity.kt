@@ -139,14 +139,13 @@ fun MainScreen(
     // 保存 hashCode 到原始 ID 的映射
     var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
 
-    // 历史卡片播放器池 - 按 URI 复用
-    val historyPlayerPool = remember { mutableMapOf<String, ExoPlayer>() }
+    // 历史卡片播放器池 - LRU 策略，最多 3 个播放器
+    val historyPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
 
     // 清理历史播放器池
     DisposableEffect(Unit) {
         onDispose {
-            historyPlayerPool.values.forEach { it.release() }
-            historyPlayerPool.clear()
+            historyPlayerPool.releaseAll()
         }
     }
 
@@ -1057,7 +1056,9 @@ fun MainScreen(
                                 .weight(1f)
                                 .fillMaxWidth()
                         ) {
-                            items(videoList, key = { it.id }) { video ->
+                            // 只显示最近 10 个历史记录，减少 UI 负担和内存占用
+                            val displayedVideos = videoList.take(10)
+                            items(displayedVideos, key = { it.id }) { video ->
                                 VideoGridItem(
                                     video = video,
                                     isSelected = selectedVideoId == video.id,
@@ -1142,7 +1143,7 @@ fun VideoGridItem(
     video: VideoItem,
     isSelected: Boolean,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
-    playerPool: MutableMap<String, ExoPlayer>,
+    playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
     onVideoTouch: (Int) -> Unit,
     onVideoClick: (Uri?) -> Unit = {},
     onVideoLongPress: (Int) -> Unit = {}
@@ -1161,29 +1162,20 @@ fun VideoGridItem(
         }
     )
 
-    // 按 URI 复用播放器 - 同一个 URI 只创建一次
+    // 按 URI 复用播放器 - 使用 LRU 池
     val uriKey = video.uri?.toString() ?: ""
     val exoPlayer = remember(uriKey) {
-        if (uriKey.isNotEmpty()) {
-            playerPool.getOrPut(uriKey) {
-                ExoPlayer.Builder(context).build().apply {
-                    video.uri?.let { uri ->
-                        setMediaItem(MediaItem.fromUri(uri))
-                        prepare()
-                        volume = 0f // 静音
-                        repeatMode = Player.REPEAT_MODE_ONE
-                    }
-                }
-            }
+        if (uriKey.isNotEmpty() && video.uri != null) {
+            playerPool.getOrCreate(uriKey, video.uri)
         } else {
             null
         }
     }
 
-    // 不在这里释放，保留在池中供复用
+    // 不在这里释放，由 LRU 池自动管理
     DisposableEffect(uriKey) {
         onDispose {
-            // 播放器保留在池中，不释放
+            // 播放器由 LRU 池管理，不需要手动释放
         }
     }
 
@@ -1242,6 +1234,12 @@ fun VideoGridItem(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
+            },
+            update = { view ->
+                view.player = exoPlayer
+            },
+            onRelease = { view ->
+                view.player = null
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -1604,6 +1602,12 @@ fun LocalVideoCard(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
+            },
+            update = { view ->
+                view.player = exoPlayer
+            },
+            onRelease = { view ->
+                view.player = null
             },
             modifier = Modifier.fillMaxSize()
         )
