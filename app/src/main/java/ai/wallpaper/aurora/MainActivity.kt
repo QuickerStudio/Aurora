@@ -310,9 +310,13 @@ fun MainScreen(
         uri?.let {
             saveVideoUri(context, it)
 
-            // 重要：每次选择视频都需要重新应用壁纸
-            // 系统会重启壁纸服务，读取新的视频路径
-            VideoLiveWallpaperService.setToWallPaper(context)
+            // 如果壁纸未激活，打开设置界面
+            if (!isAuroraWallpaperActive(context)) {
+                VideoLiveWallpaperService.setToWallPaper(context)
+            } else {
+                // 如果壁纸已激活，发送广播通知切换视频（遥控器）
+                VideoLiveWallpaperService.notifyVideoPathChanged(context)
+            }
 
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
@@ -428,8 +432,13 @@ fun MainScreen(
                                 if (videoPath.isNotBlank()) {
                                     saveVideoPath(context, videoPath)
 
-                                    // 重要：每次输入新路径都需要重新应用壁纸
-                                    VideoLiveWallpaperService.setToWallPaper(context)
+                                    // 如果壁纸未激活，打开设置界面
+                                    if (!isAuroraWallpaperActive(context)) {
+                                        VideoLiveWallpaperService.setToWallPaper(context)
+                                    } else {
+                                        // 如果壁纸已激活，发送广播通知切换视频
+                                        VideoLiveWallpaperService.notifyVideoPathChanged(context)
+                                    }
 
                                     videoPath = ""
                                     scope.launch { drawerState.close() }
@@ -1136,9 +1145,13 @@ fun MainScreen(
                                         videoUri?.let { uri ->
                                             saveVideoPath(context, uri.toString())
 
-                                            // 重要：每次切换视频都需要重新应用壁纸
-                                            // 系统会重启壁纸服务，读取新的视频路径
-                                            VideoLiveWallpaperService.setToWallPaper(context)
+                                            // 如果壁纸未激活，打开设置界面
+                                            if (!isAuroraWallpaperActive(context)) {
+                                                VideoLiveWallpaperService.setToWallPaper(context)
+                                            } else {
+                                                // 如果壁纸已激活，发送广播通知切换视频
+                                                VideoLiveWallpaperService.notifyVideoPathChanged(context)
+                                            }
                                         }
                                     },
                                     onVideoLongPress = { videoId ->
@@ -1187,9 +1200,13 @@ fun MainScreen(
                         onVideoClick = { video ->
                             saveVideoUri(context, video.uri)
 
-                            // 重要：由于采用文件通信，每次切换视频都需要重新应用壁纸
-                            // 系统会重启壁纸服务，服务读取新的视频路径
-                            VideoLiveWallpaperService.setToWallPaper(context)
+                            // 如果壁纸未激活，打开设置界面
+                            if (!isAuroraWallpaperActive(context)) {
+                                VideoLiveWallpaperService.setToWallPaper(context)
+                            } else {
+                                // 如果壁纸已激活，发送广播通知切换视频
+                                VideoLiveWallpaperService.notifyVideoPathChanged(context)
+                            }
 
                             // 刷新历史列表
                             isLocalLibraryVisible = true
