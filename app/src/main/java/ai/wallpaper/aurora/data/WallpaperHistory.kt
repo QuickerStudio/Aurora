@@ -25,20 +25,28 @@ object WallpaperHistoryManager {
 
     /**
      * 添加壁纸历史记录
+     * 如果已存在相同的 URI，则不添加（避免热切换时重复添加）
      */
     fun addHistory(context: Context, videoUri: Uri, displayName: String? = null) {
         val history = loadHistory(context).toMutableList()
+        val uriString = videoUri.toString()
+
+        // 检查是否已存在相同的 URI（第一条记录）
+        if (history.isNotEmpty() && history[0].videoUri == uriString) {
+            // 已存在且是最新的记录，不添加（避免热切换重复）
+            return
+        }
 
         // 创建新记录
         val newItem = WallpaperHistoryItem(
             id = System.currentTimeMillis().toString(),
-            videoUri = videoUri.toString(),
+            videoUri = uriString,
             timestamp = System.currentTimeMillis(),
             displayName = displayName
         )
 
-        // 检查是否已存在相同的URI，如果存在则移除旧记录
-        history.removeAll { it.videoUri == videoUri.toString() }
+        // 移除旧的相同 URI 记录（如果存在）
+        history.removeAll { it.videoUri == uriString }
 
         // 添加到列表开头
         history.add(0, newItem)
