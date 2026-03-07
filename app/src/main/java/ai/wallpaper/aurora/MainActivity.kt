@@ -304,19 +304,16 @@ fun MainScreen(
     }
 
     // 视频选择器
+    // FAB 按钮视频选择器 - 始终调用系统壁纸设置（备用方案，最可靠）
     val videoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
             saveVideoUri(context, it)
 
-            // 如果壁纸未激活，打开设置界面
-            if (!isAuroraWallpaperActive(context)) {
-                VideoLiveWallpaperService.setToWallPaper(context)
-            } else {
-                // 如果壁纸已激活，发送广播通知切换视频（遥控器）
-                VideoLiveWallpaperService.notifyVideoPathChanged(context)
-            }
+            // FAB 按钮始终打开系统壁纸设置界面（安全可靠的备用方案）
+            // 适用于所有 Android 版本，不依赖广播机制
+            VideoLiveWallpaperService.setToWallPaper(context)
 
             val (items, idMap) = loadHistoryVideoItems(context)
             videoList = items
@@ -1031,7 +1028,7 @@ fun MainScreen(
                         )
                     }
 
-                    // FAB按钮 - 右侧
+                    // FAB按钮 - 右侧（备用方案：始终调用系统壁纸设置，安全可靠）
                     if (showFab) {
                         IconButton(
                             onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
