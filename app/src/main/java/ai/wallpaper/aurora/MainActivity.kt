@@ -241,19 +241,19 @@ fun MainScreen(
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
     // 保存 hashCode 到原始 ID 的映射
     var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
-    // 历史记录显示数量（支持下拉加载更多）
-    var historyDisplayCount by remember { mutableStateOf(10) }
-    var isLoadingMoreHistory by remember { mutableStateOf(false) }
+    // 预览窗口显示数量（支持下拉加载更多）
+    var previewDisplayCount by remember { mutableStateOf(10) }
+    var isLoadingMorePreview by remember { mutableStateOf(false) }
 
-    // 历史卡片播放器池 - LRU 策略，最多 3 个播放器
-    val historyPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
-    val historyPreviewProcessor = remember { PreviewProcessor(context) }
+    // 预览窗口播放器池 - LRU 策略，最多 3 个播放器
+    val previewPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
+    val previewProcessor = remember { PreviewProcessor(context) }
 
-    // 清理历史播放器池
+    // 清理预览窗口播放器池
     DisposableEffect(Unit) {
         onDispose {
-            historyPreviewProcessor.cancel()
-            historyPlayerPool.releaseAll()
+            previewProcessor.cancel()
+            previewPlayerPool.releaseAll()
         }
     }
 
@@ -364,7 +364,7 @@ fun MainScreen(
         if (allGranted) {
             scope.launch {
                 // 权限授予后重新加载列表（包含本地媒体）
-                val (items, idMap) = loadHistoryVideoItems(context)
+                val (items, idMap) = loadPreviewItems(context)
                 videoList = items
                 videoIdMap = idMap
             }
@@ -384,7 +384,7 @@ fun MainScreen(
             VideoLiveWallpaperService.setToWallPaper(context)
 
             scope.launch {
-                val (items, idMap) = loadHistoryVideoItems(context)
+                val (items, idMap) = loadPreviewItems(context)
                 videoList = items
                 videoIdMap = idMap
             }
@@ -402,8 +402,8 @@ fun MainScreen(
             permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
         }
 
-        // 从历史记录和本地媒体加载视频列表
-        val (items, idMap) = loadHistoryVideoItems(context)
+        // 从预览窗口加载媒体列表
+        val (items, idMap) = loadPreviewItems(context)
         videoList = items
         videoIdMap = idMap
     }
@@ -412,12 +412,12 @@ fun MainScreen(
     LaunchedEffect(historyRefreshTrigger) {
         if (historyRefreshTrigger > 0) {
             android.util.Log.d("MainActivity", "Refreshing history list, trigger: $historyRefreshTrigger")
-            val (items, idMap) = loadHistoryVideoItems(context)
+            val (items, idMap) = loadPreviewItems(context)
             videoList = items
             videoIdMap = idMap
-            historyPreviewProcessor.clear()
+            previewProcessor.clear()
             // 重置显示数量
-            historyDisplayCount = minOf(10, items.size)
+            previewDisplayCount = minOf(10, items.size)
         }
     }
 
@@ -709,7 +709,7 @@ fun MainScreen(
 
                                 // 清除旧的预览缓存，强制重新加载
                                 videoList = videoList.map { it.copy(previewBitmap = null) }
-                                historyPreviewProcessor.clear()
+                                previewProcessor.clear()
                             },
                             shape = RoundedCornerShape(999.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -1300,8 +1300,8 @@ fun MainScreen(
                     } else {
                         // 视频网格
                         val gridState = rememberLazyGridState()
-                        val displayedVideos = remember(videoList, historyDisplayCount) {
-                            videoList.take(historyDisplayCount)
+                        val displayedVideos = remember(videoList, previewDisplayCount) {
+                            videoList.take(previewDisplayCount)
                         }
 
                         LaunchedEffect(displayedVideos, gridState) {
@@ -1313,7 +1313,7 @@ fun MainScreen(
                                 visibleVideos.forEach { prioritizedVideos.add(it) }
                                 displayedVideos.forEach { prioritizedVideos.add(it) }
 
-                                historyPreviewProcessor.submit(
+                                previewProcessor.submit(
                                     items = prioritizedVideos.map { video ->
                                         PreviewProcessor.PreviewRequest(
                                             id = video.id,
@@ -1348,14 +1348,14 @@ fun MainScreen(
                         LaunchedEffect(gridState) {
                             snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
                                 .collect { lastVisibleIndex ->
-                                    if (lastVisibleIndex != null && !isLoadingMoreHistory) {
-                                        val totalItems = historyDisplayCount
+                                    if (lastVisibleIndex != null && !isLoadingMorePreview) {
+                                        val totalItems = previewDisplayCount
                                         // 当滚动到倒数第3个时，加载更多
-                                        if (lastVisibleIndex >= totalItems - 3 && historyDisplayCount < videoList.size) {
-                                            isLoadingMoreHistory = true
+                                        if (lastVisibleIndex >= totalItems - 3 && previewDisplayCount < videoList.size) {
+                                            isLoadingMorePreview = true
                                             kotlinx.coroutines.delay(100) // 短暂延迟避免频繁触发
-                                            historyDisplayCount = minOf(historyDisplayCount + 10, videoList.size)
-                                            isLoadingMoreHistory = false
+                                            previewDisplayCount = minOf(previewDisplayCount + 10, videoList.size)
+                                            isLoadingMorePreview = false
                                         }
                                     }
                                 }
@@ -1376,7 +1376,7 @@ fun MainScreen(
                                     video = video,
                                     isSelected = selectedVideoId == video.id,
                                     themeColors = themeColors,
-                                    playerPool = historyPlayerPool,
+                                    playerPool = previewPlayerPool,
                                     onVideoTouch = { videoId ->
                                         selectedVideoId = if (selectedVideoId == videoId) null else videoId
                                     },
@@ -1419,12 +1419,12 @@ fun MainScreen(
                                             val originalId = videoIdMap[videoId]
                                             originalId?.let { id ->
                                                 WallpaperHistoryManager.deleteHistory(context, id)
-                                                val (items, idMap) = loadHistoryVideoItems(context)
+                                                val (items, idMap) = loadPreviewItems(context)
                                                 videoList = items
                                                 videoIdMap = idMap
-                                                historyPreviewProcessor.clear()
+                                                previewProcessor.clear()
                                                 // 重置显示数量
-                                                historyDisplayCount = minOf(10, items.size)
+                                                previewDisplayCount = minOf(10, items.size)
                                             }
                                         }
                                     },
@@ -1594,7 +1594,7 @@ private fun isAuroraWallpaperActive(context: Context): Boolean {
         wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
 }
 
-private suspend fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
+private suspend fun loadPreviewItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
     val history = WallpaperHistoryManager.loadHistory(context)
     val idMap = mutableMapOf<Int, String>()
 
