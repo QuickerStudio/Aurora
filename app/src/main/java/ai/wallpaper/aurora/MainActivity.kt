@@ -1494,10 +1494,10 @@ fun VideoGridItem(
         }
     )
 
-    // 按 URI 复用播放器 - 使用 LRU 池
+    // 按 URI 复用播放器 - 使用 LRU 池（仅视频）
     val uriKey = video.uri?.toString() ?: ""
     val exoPlayer = remember(uriKey) {
-        if (uriKey.isNotEmpty() && video.uri != null) {
+        if (uriKey.isNotEmpty() && video.uri != null && video.mediaType == MediaType.VIDEO) {
             playerPool.getOrCreate(uriKey, video.uri)
         } else {
             null
@@ -1556,7 +1556,37 @@ fun VideoGridItem(
                 )
             }
     ) {
-        if (isSelected && exoPlayer != null) {
+        // 底层：始终显示缩略图（避免黑屏）
+        if (previewBitmap != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    bitmap = previewBitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        // 上层：选中时叠加播放器（仅视频）
+        if (isSelected && exoPlayer != null && video.mediaType == MediaType.VIDEO) {
             key(displayMode) {
                 AndroidView(
                     factory = { ctx ->
@@ -1567,6 +1597,8 @@ fun VideoGridItem(
                                 AspectRatioFrameLayout.RESIZE_MODE_FIT
                             else
                                 AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            // 设置背景透明，让底层缩略图可见
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
                             layoutParams = android.view.ViewGroup.LayoutParams(
                                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -1585,34 +1617,6 @@ fun VideoGridItem(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-            }
-        } else {
-            if (previewBitmap != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        bitmap = previewBitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
             }
         }
     }
