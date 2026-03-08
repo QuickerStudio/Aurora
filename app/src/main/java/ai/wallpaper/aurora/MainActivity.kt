@@ -1786,16 +1786,34 @@ private fun stopAuroraWallpaper(
             wallpaperInfo.packageName == context.packageName &&
             wallpaperInfo.serviceName == VideoLiveWallpaperService::class.java.name) {
             // 清除 Aurora 主屏动态壁纸
+            android.util.Log.d("MainActivity", "Clearing home screen live wallpaper")
             wallpaperManager.clear(android.app.WallpaperManager.FLAG_SYSTEM)
             hasActiveWallpaper = true
         }
 
         // 2. 清除锁屏壁纸（恢复系统默认）
-        try {
-            wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
-            hasActiveWallpaper = true
-        } catch (e: Exception) {
-            android.util.Log.w("MainActivity", "Failed to clear lock screen wallpaper", e)
+        // 注意：在 Android 7.0+ (API 24+) 支持独立的锁屏壁纸
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            try {
+                android.util.Log.d("MainActivity", "Attempting to clear lock screen wallpaper")
+                wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
+                android.util.Log.d("MainActivity", "Lock screen wallpaper cleared successfully")
+                hasActiveWallpaper = true
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Failed to clear lock screen wallpaper", e)
+                // 即使锁屏壁纸清除失败，如果主屏壁纸清除成功，仍然算作成功
+            }
+        } else {
+            // Android 7.0 以下版本，clear() 会同时清除主屏和锁屏
+            if (!hasActiveWallpaper) {
+                try {
+                    android.util.Log.d("MainActivity", "Clearing wallpaper (both home and lock)")
+                    wallpaperManager.clear()
+                    hasActiveWallpaper = true
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Failed to clear wallpaper", e)
+                }
+            }
         }
 
         if (hasActiveWallpaper) {
