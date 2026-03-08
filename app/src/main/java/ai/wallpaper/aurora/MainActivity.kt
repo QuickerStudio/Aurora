@@ -1308,12 +1308,40 @@ fun MainScreen(
 
                         LaunchedEffect(displayedVideos, gridState) {
                             snapshotFlow {
-                                gridState.layoutInfo.visibleItemsInfo
-                                    .mapNotNull { itemInfo -> displayedVideos.getOrNull(itemInfo.index) }
-                            }.collect { visibleVideos ->
-                                // 只提交可见的视频，减少并发压力
+                                val visibleItems = gridState.layoutInfo.visibleItemsInfo
+                                val visibleVideos = visibleItems.mapNotNull { itemInfo ->
+                                    displayedVideos.getOrNull(itemInfo.index)
+                                }
+
+                                // 计算可见行范围（2列布局）
+                                val firstVisibleRow = visibleItems.firstOrNull()?.index?.div(2) ?: 0
+                                val lastVisibleRow = visibleItems.lastOrNull()?.index?.div(2) ?: 0
+
+                                // 扩展范围：可见行 + 前后各2行预加载
+                                val startRow = (firstVisibleRow - 2).coerceAtLeast(0)
+                                val endRow = (lastVisibleRow + 2).coerceAtMost((displayedVideos.size - 1) / 2)
+
+                                Triple(visibleVideos, startRow, endRow)
+                            }.collect { (visibleVideos, startRow, endRow) ->
+                                // 逐行扫描：按行优先级提交预览请求
+                                val rowPrioritizedVideos = mutableListOf<VideoItem>()
+
+                                // 先加载可见行
+                                for (row in startRow..endRow) {
+                                    val index1 = row * 2
+                                    val index2 = row * 2 + 1
+
+                                    if (index1 < displayedVideos.size) {
+                                        rowPrioritizedVideos.add(displayedVideos[index1])
+                                    }
+                                    if (index2 < displayedVideos.size) {
+                                        rowPrioritizedVideos.add(displayedVideos[index2])
+                                    }
+                                }
+
+                                // 提交预览请求
                                 previewProcessor.submit(
-                                    items = visibleVideos.map { video ->
+                                    items = rowPrioritizedVideos.map { video ->
                                         PreviewProcessor.PreviewRequest(
                                             id = video.id,
                                             uri = video.uri,
@@ -1327,6 +1355,11 @@ fun MainScreen(
                                         previewBitmaps[id] = bitmap
                                     }
                                 )
+
+                                // 增量回收：清理不在范围内的预览
+                                val activeIds = rowPrioritizedVideos.map { it.id }.toSet()
+                                val keysToRemove = previewBitmaps.keys.filter { it !in activeIds }
+                                keysToRemove.forEach { previewBitmaps.remove(it) }
                             }
                         }
 
