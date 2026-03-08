@@ -52,7 +52,7 @@
     <string name="swipe_right_to_load_more">向\n右\n滑\n动\n加\n载\n更\n多</string>
     <string name="tap_video_to_set_wallpaper">点\n击\n视\n频\n卡\n片\n设\n为\n壁\n纸</string>
     <string name="swipe_left_to_show_library">向左滑动展开视频库</string>
-    <string name="history_card_display_mode">历史卡片显示模式</string>
-    <string name="history_card_display_fit">完整显示</string>
-    <string name="history_card_display_fill">填充显示</string>
+    <string name="media_display_mode">媒体显示模式</string>
+    <string name="media_display_fit">完整显示</string>
+    <string name="media_display_fill">填充显示</string>
 </resources>

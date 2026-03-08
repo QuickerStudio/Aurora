@@ -69,7 +69,7 @@ class PreviewProcessor(
                     try {
                         val thumbnail = if (next.mediaType == MediaType.IMAGE) {
                             // 图片：直接加载并缩放
-                            loadImageThumbnail(uri)
+                            loadImageThumbnail(uri, displayMode)
                         } else {
                             // 视频：使用VideoThumbnailCache
                             VideoThumbnailCache.getThumbnail(appContext, uri, displayMode)
@@ -103,7 +103,7 @@ class PreviewProcessor(
         }
     }
 
-    private fun loadImageThumbnail(uri: Uri): Bitmap? {
+    private fun loadImageThumbnail(uri: Uri, displayMode: String): Bitmap? {
         return try {
             appContext.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val options = BitmapFactory.Options().apply {
@@ -124,12 +124,93 @@ class PreviewProcessor(
                     val decodeOptions = BitmapFactory.Options().apply {
                         inSampleSize = scale
                     }
-                    BitmapFactory.decodeStream(stream, null, decodeOptions)
+                    val bitmap = BitmapFactory.decodeStream(stream, null, decodeOptions)
+
+                    // 根据显示模式处理图片
+                    bitmap?.let {
+                        if (displayMode == "fit") {
+                            scaleBitmapPreservingAspectRatio(it, targetWidth, targetHeight)
+                        } else {
+                            scaleBitmapCropToFill(it, targetWidth, targetHeight)
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
             android.util.Log.e("PreviewProcessor", "Failed to load image thumbnail", e)
             null
+        }
+    }
+
+    /**
+     * 将 Bitmap 等比缩放到目标边界内（fit模式）
+     */
+    private fun scaleBitmapPreservingAspectRatio(source: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return source
+        }
+
+        val widthScale = maxWidth.toFloat() / sourceWidth.toFloat()
+        val heightScale = maxHeight.toFloat() / sourceHeight.toFloat()
+        val scale = minOf(widthScale, heightScale, 1f)
+
+        if (scale >= 1f) {
+            return source
+        }
+
+        val targetWidth = (sourceWidth * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (sourceHeight * scale).toInt().coerceAtLeast(1)
+
+        return Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true).also {
+            if (it != source) {
+                source.recycle()
+            }
+        }
+    }
+
+    /**
+     * 将 Bitmap 等比缩放后裁剪填充目标尺寸（fill模式）
+     */
+    private fun scaleBitmapCropToFill(source: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return source
+        }
+
+        // 计算缩放比例，选择能填满目标尺寸的较大值
+        val widthScale = targetWidth.toFloat() / sourceWidth.toFloat()
+        val heightScale = targetHeight.toFloat() / sourceHeight.toFloat()
+        val scale = maxOf(widthScale, heightScale)
+
+        val scaledWidth = (sourceWidth * scale).toInt()
+        val scaledHeight = (sourceHeight * scale).toInt()
+
+        // 先缩放
+        val scaledBitmap = Bitmap.createScaledBitmap(source, scaledWidth, scaledHeight, true)
+        if (scaledBitmap != source) {
+            source.recycle()
+        }
+
+        // 计算裁剪位置（居中裁剪）
+        val xOffset = ((scaledWidth - targetWidth) / 2).coerceAtLeast(0)
+        val yOffset = ((scaledHeight - targetHeight) / 2).coerceAtLeast(0)
+
+        // 裁剪到目标尺寸
+        return Bitmap.createBitmap(
+            scaledBitmap,
+            xOffset,
+            yOffset,
+            targetWidth.coerceAtMost(scaledWidth),
+            targetHeight.coerceAtMost(scaledHeight)
+        ).also {
+            if (it != scaledBitmap) {
+                scaledBitmap.recycle()
+            }
         }
     }
 

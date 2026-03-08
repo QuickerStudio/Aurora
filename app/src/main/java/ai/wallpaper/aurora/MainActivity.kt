@@ -306,8 +306,8 @@ fun MainScreen(
     var selectedTheme by remember {
         mutableStateOf(initialSelectedTheme)
     }
-    var historyCardDisplayMode by remember {
-        val modeFile = File(context.filesDir, "history_card_display_mode")
+    var mediaDisplayMode by remember {
+        val modeFile = File(context.filesDir, "media_display_mode")
         mutableStateOf(if (modeFile.exists()) modeFile.readText() else "fit")
     }
     var showUserGuideDialog by remember { mutableStateOf(false) }
@@ -737,34 +737,36 @@ fun MainScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = stringResource(R.string.history_card_display_mode),
+                                text = stringResource(R.string.media_display_mode),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Text(
-                                text = if (historyCardDisplayMode == "fit")
-                                       stringResource(R.string.history_card_display_fit)
-                                       else stringResource(R.string.history_card_display_fill),
+                                text = if (mediaDisplayMode == "fit")
+                                       stringResource(R.string.media_display_fit)
+                                       else stringResource(R.string.media_display_fill),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Button(
                             onClick = {
-                                historyCardDisplayMode = if (historyCardDisplayMode == "fit") "fill" else "fit"
-                                val modeFile = File(context.filesDir, "history_card_display_mode")
-                                modeFile.writeText(historyCardDisplayMode)
+                                mediaDisplayMode = if (mediaDisplayMode == "fit") "fill" else "fit"
+                                val modeFile = File(context.filesDir, "media_display_mode")
+                                modeFile.writeText(mediaDisplayMode)
 
                                 // 清除旧的预览缓存，强制重新加载
                                 videoList = videoList.map { it.copy(previewBitmap = null) }
                                 historyPreviewProcessor.clear()
+                                localVideoPreviews.clear()
+                                localPreviewProcessor.clear()
                             },
                             shape = RoundedCornerShape(999.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = if (historyCardDisplayMode == "fit")
-                                       stringResource(R.string.history_card_display_fill)
-                                       else stringResource(R.string.history_card_display_fit),
+                                text = if (mediaDisplayMode == "fit")
+                                       stringResource(R.string.media_display_fill)
+                                       else stringResource(R.string.media_display_fit),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -1369,7 +1371,7 @@ fun MainScreen(
                                             mediaType = video.mediaType
                                         )
                                     },
-                                    displayMode = historyCardDisplayMode,
+                                    displayMode = mediaDisplayMode,
                                     onPreviewReady = { id, uri, bitmap ->
                                         videoList = videoList.map { item ->
                                             if (item.id == id && item.uri == uri && item.previewBitmap == null) {
@@ -1475,7 +1477,7 @@ fun MainScreen(
                                             historyDisplayCount = minOf(10, items.size)
                                         }
                                     },
-                                    displayMode = historyCardDisplayMode
+                                    displayMode = mediaDisplayMode
                                 )
                             }
                         }
@@ -1491,6 +1493,7 @@ fun MainScreen(
                         isVisible = isLocalLibraryVisible,
                         playerPool = localPlayerPool,
                         previewProcessor = localPreviewProcessor,
+                        displayMode = mediaDisplayMode,
                         onVisibilityChange = { isVisible ->
                             isLocalLibraryVisible = isVisible
                         },
@@ -1832,6 +1835,7 @@ fun LocalVideoLibrary(
     isVisible: Boolean,
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
     previewProcessor: PreviewProcessor,
+    displayMode: String,
     onVisibilityChange: (Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onVideoClick: (LocalVideo) -> Unit
@@ -1896,6 +1900,7 @@ fun LocalVideoLibrary(
                             mediaType = video.mediaType
                         )
                     },
+                    displayMode = displayMode,
                     onPreviewReady = { id, uri, bitmap ->
                         localVideoPreviews[id.toLong()] = bitmap
                     }
