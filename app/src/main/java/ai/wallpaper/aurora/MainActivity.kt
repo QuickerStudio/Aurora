@@ -244,6 +244,8 @@ fun MainScreen(
     // 预览窗口显示数量（支持下拉加载更多）
     var previewDisplayCount by remember { mutableStateOf(10) }
     var isLoadingMorePreview by remember { mutableStateOf(false) }
+    // 预览缩略图缓存 - 使用 Map 避免遍历整个列表
+    val previewBitmaps = remember { mutableStateMapOf<Int, Bitmap>() }
 
     // 预览窗口播放器池 - LRU 策略，最多 3 个播放器
     val previewPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
@@ -708,7 +710,7 @@ fun MainScreen(
                                 modeFile.writeText(mediaDisplayMode)
 
                                 // 清除旧的预览缓存，强制重新加载
-                                videoList = videoList.map { it.copy(previewBitmap = null) }
+                                previewBitmaps.clear()
                                 previewProcessor.clear()
                             },
                             shape = RoundedCornerShape(999.dp),
@@ -1309,28 +1311,20 @@ fun MainScreen(
                                 gridState.layoutInfo.visibleItemsInfo
                                     .mapNotNull { itemInfo -> displayedVideos.getOrNull(itemInfo.index) }
                             }.collect { visibleVideos ->
-                                val prioritizedVideos = LinkedHashSet<VideoItem>()
-                                visibleVideos.forEach { prioritizedVideos.add(it) }
-                                displayedVideos.forEach { prioritizedVideos.add(it) }
-
+                                // 只提交可见的视频，减少并发压力
                                 previewProcessor.submit(
-                                    items = prioritizedVideos.map { video ->
+                                    items = visibleVideos.map { video ->
                                         PreviewProcessor.PreviewRequest(
                                             id = video.id,
                                             uri = video.uri,
-                                            hasPreview = video.previewBitmap != null,
+                                            hasPreview = previewBitmaps.containsKey(video.id),
                                             mediaType = video.mediaType
                                         )
                                     },
                                     displayMode = mediaDisplayMode,
                                     onPreviewReady = { id, uri, bitmap ->
-                                        videoList = videoList.map { item ->
-                                            if (item.id == id && item.uri == uri && item.previewBitmap == null) {
-                                                item.copy(previewBitmap = bitmap)
-                                            } else {
-                                                item
-                                            }
-                                        }
+                                        // 直接更新缓存，避免遍历整个列表
+                                        previewBitmaps[id] = bitmap
                                     }
                                 )
                             }
@@ -1367,6 +1361,8 @@ fun MainScreen(
                             contentPadding = PaddingValues(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
+                            // 优化：减少过度滚动，提升稳定性
+                            userScrollEnabled = true,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
@@ -1374,6 +1370,7 @@ fun MainScreen(
                             itemsIndexed(displayedVideos, key = { _, video -> video.id }) { _, video ->
                                 VideoGridItem(
                                     video = video,
+                                    previewBitmap = previewBitmaps[video.id],
                                     isSelected = selectedVideoId == video.id,
                                     themeColors = themeColors,
                                     playerPool = previewPlayerPool,
@@ -1442,6 +1439,7 @@ fun MainScreen(
 @Composable
 fun VideoGridItem(
     video: VideoItem,
+    previewBitmap: Bitmap?,
     isSelected: Boolean,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
@@ -1556,7 +1554,6 @@ fun VideoGridItem(
                 )
             }
         } else {
-            val previewBitmap = video.previewBitmap
             if (previewBitmap != null) {
                 Box(
                     modifier = Modifier
