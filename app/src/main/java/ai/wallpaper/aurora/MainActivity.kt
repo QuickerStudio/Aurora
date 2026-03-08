@@ -1791,14 +1791,28 @@ private fun stopAuroraWallpaper(
             hasActiveWallpaper = true
         }
 
-        // 2. 清除锁屏壁纸（恢复系统默认）
+        // 2. 检查并清除锁屏壁纸
         // 注意：在 Android 7.0+ (API 24+) 支持独立的锁屏壁纸
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             try {
-                android.util.Log.d("MainActivity", "Attempting to clear lock screen wallpaper")
-                wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
-                android.util.Log.d("MainActivity", "Lock screen wallpaper cleared successfully")
-                hasActiveWallpaper = true
+                // 检查锁屏是否使用了 Live Wallpaper
+                val lockWallpaperInfo = wallpaperManager.getWallpaperInfo(android.app.WallpaperManager.FLAG_LOCK)
+                android.util.Log.d("MainActivity", "Lock screen wallpaper info: $lockWallpaperInfo")
+
+                if (lockWallpaperInfo != null &&
+                    lockWallpaperInfo.packageName == context.packageName &&
+                    lockWallpaperInfo.serviceName == VideoLiveWallpaperService::class.java.name) {
+                    // 锁屏使用了 Aurora 的 Live Wallpaper，清除它
+                    android.util.Log.d("MainActivity", "Clearing Aurora lock screen live wallpaper")
+                    wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
+                    android.util.Log.d("MainActivity", "Lock screen wallpaper cleared successfully")
+                    hasActiveWallpaper = true
+                } else {
+                    // 锁屏可能使用了静态壁纸，也尝试清除
+                    android.util.Log.d("MainActivity", "Attempting to clear lock screen wallpaper (static or other)")
+                    wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
+                    hasActiveWallpaper = true
+                }
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "Failed to clear lock screen wallpaper", e)
                 // 即使锁屏壁纸清除失败，如果主屏壁纸清除成功，仍然算作成功
