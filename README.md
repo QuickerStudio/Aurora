@@ -199,7 +199,7 @@ Copyright © 2026 QuickerStudio. All rights reserved.
 
 ## Acknowledgments
 
-## ✨ **cyunrei** ✨
+                         ## ✨ **cyunrei** ✨
 
 ### [Video-Live-Wallpaper](https://github.com/cyunrei/Video-Live-Wallpaper)
 
