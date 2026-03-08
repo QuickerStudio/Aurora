@@ -249,33 +249,11 @@ fun MainScreen(
     val historyPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
     val historyPreviewProcessor = remember { PreviewProcessor(context) }
 
-    // 本地视频库预览处理器
-    val localPreviewProcessor = remember { PreviewProcessor(context) }
-
     // 清理历史播放器池
     DisposableEffect(Unit) {
         onDispose {
             historyPreviewProcessor.cancel()
-            localPreviewProcessor.cancel()
             historyPlayerPool.releaseAll()
-        }
-    }
-
-    // 本地视频库状态
-    var localVideos by remember { mutableStateOf(listOf<LocalVideo>()) }
-    var localVideoOffset by remember { mutableStateOf(0) }
-    var isLoadingLocalVideos by remember { mutableStateOf(false) }
-    var isLocalLibraryVisible by remember { mutableStateOf(true) }
-    // 本地视频预览缩略图状态
-    val localVideoPreviews = remember { mutableStateMapOf<Long, Bitmap>() }
-
-    // 本地视频库播放器池 - LRU 策略，最多 3 个播放器
-    val localPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
-
-    // 清理本地播放器池
-    DisposableEffect(Unit) {
-        onDispose {
-            localPlayerPool.releaseAll()
         }
     }
 
@@ -385,16 +363,10 @@ fun MainScreen(
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             scope.launch {
-                isLoadingLocalVideos = true
-                // 并行扫描视频和图片
-                val videosDeferred = async { LocalVideoScanner.scanVideos(context, offset = 0, limit = 100) }
-                val imagesDeferred = async { LocalImageScanner.scanImages(context, offset = 0, limit = 100) }
-                // 合并并按时间排序，取前20个
-                localVideos = (videosDeferred.await() + imagesDeferred.await())
-                    .sortedByDescending { it.dateAdded }
-                    .take(20)
-                localVideoOffset = 20
-                isLoadingLocalVideos = false
+                // 权限授予后重新加载列表（包含本地媒体）
+                val (items, idMap) = loadHistoryVideoItems(context)
+                videoList = items
+                videoIdMap = idMap
             }
         }
     }
@@ -411,9 +383,11 @@ fun MainScreen(
             // 适用于所有 Android 版本，不依赖广播机制
             VideoLiveWallpaperService.setToWallPaper(context)
 
-            val (items, idMap) = loadHistoryVideoItems(context)
-            videoList = items
-            videoIdMap = idMap
+            scope.launch {
+                val (items, idMap) = loadHistoryVideoItems(context)
+                videoList = items
+                videoIdMap = idMap
+            }
         }
     }
 
@@ -428,31 +402,10 @@ fun MainScreen(
             permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
         }
 
-        // 从历史记录加载视频列表
+        // 从历史记录和本地媒体加载视频列表
         val (items, idMap) = loadHistoryVideoItems(context)
         videoList = items
         videoIdMap = idMap
-
-        // 仅在权限已存在时加载本地视频库
-        val hasVideoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.checkSelfPermission(Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED &&
-            context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-        } else {
-            context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-        }
-
-        if (hasVideoPermission) {
-            isLoadingLocalVideos = true
-            // 并行扫描视频和图片
-            val videosDeferred = async { LocalVideoScanner.scanVideos(context, offset = 0, limit = 100) }
-            val imagesDeferred = async { LocalImageScanner.scanImages(context, offset = 0, limit = 100) }
-            // 合并并按时间排序，取前20个
-            localVideos = (videosDeferred.await() + imagesDeferred.await())
-                .sortedByDescending { it.dateAdded }
-                .take(20)
-            localVideoOffset = 20
-            isLoadingLocalVideos = false
-        }
     }
 
     // 监听历史刷新触发器
@@ -757,8 +710,6 @@ fun MainScreen(
                                 // 清除旧的预览缓存，强制重新加载
                                 videoList = videoList.map { it.copy(previewBitmap = null) }
                                 historyPreviewProcessor.clear()
-                                localVideoPreviews.clear()
-                                localPreviewProcessor.clear()
                             },
                             shape = RoundedCornerShape(999.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -1482,90 +1433,6 @@ fun MainScreen(
                             }
                         }
                     }
-
-                    // 本地视频库横向滑动栏 - 增量加载和销毁
-                    LocalVideoLibrary(
-                        localVideos = localVideos,
-                        localVideoPreviews = localVideoPreviews,
-                        themeColors = themeColors,
-                        isLoading = isLoadingLocalVideos,
-                        autoHideTimer = autoHideTimer,
-                        isVisible = isLocalLibraryVisible,
-                        playerPool = localPlayerPool,
-                        previewProcessor = localPreviewProcessor,
-                        displayMode = mediaDisplayMode,
-                        onVisibilityChange = { isVisible ->
-                            isLocalLibraryVisible = isVisible
-                        },
-                        onLoadMore = {
-                            scope.launch {
-                                if (!isLoadingLocalVideos) {
-                                    isLoadingLocalVideos = true
-                                    // 并行扫描更多视频和图片
-                                    val videosDeferred = async {
-                                        LocalVideoScanner.scanVideos(context, offset = 0, limit = localVideoOffset + 100)
-                                    }
-                                    val imagesDeferred = async {
-                                        LocalImageScanner.scanImages(context, offset = 0, limit = localVideoOffset + 100)
-                                    }
-                                    // 合并并按时间排序
-                                    val allMedia = (videosDeferred.await() + imagesDeferred.await())
-                                        .sortedByDescending { it.dateAdded }
-                                    // 取新的20个
-                                    localVideos = allMedia.take(localVideoOffset + 20)
-                                    localVideoOffset += 20
-                                    isLoadingLocalVideos = false
-                                }
-                            }
-                        },
-                        onVideoClick = { video ->
-                            if (video.mediaType == MediaType.IMAGE) {
-                                // 图片：直接设置为静态壁纸
-                                scope.launch {
-                                    try {
-                                        val wallpaperManager = android.app.WallpaperManager.getInstance(context)
-                                        context.contentResolver.openInputStream(video.uri)?.use { inputStream ->
-                                            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
-                                            wallpaperManager.setBitmap(bitmap)
-                                            bitmap.recycle()
-                                        }
-                                        // 添加到历史记录
-                                        WallpaperHistoryManager.addHistory(
-                                            context,
-                                            video.uri,
-                                            video.displayName,
-                                            MediaType.IMAGE
-                                        )
-                                        // 刷新历史列表
-                                        val (items, idMap) = loadHistoryVideoItems(context)
-                                        videoList = items
-                                        videoIdMap = idMap
-                                        historyPreviewProcessor.clear()
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("MainActivity", "Failed to set image wallpaper", e)
-                                    }
-                                }
-                            } else {
-                                // 视频：使用Live Wallpaper服务
-                                saveVideoUri(context, video.uri)
-
-                                // 如果壁纸未激活，打开设置界面
-                                if (!isAuroraWallpaperActive(context)) {
-                                    VideoLiveWallpaperService.setToWallPaper(context)
-                                } else {
-                                    // 如果壁纸已激活，发送广播通知切换视频
-                                    VideoLiveWallpaperService.notifyVideoPathChanged(context)
-                                }
-
-                                // 刷新历史列表
-                                isLocalLibraryVisible = true
-                                val (items, idMap) = loadHistoryVideoItems(context)
-                                videoList = items
-                                videoIdMap = idMap
-                                historyPreviewProcessor.clear()
-                            }
-                        }
-                    )
                 }
             }
         }
@@ -1727,10 +1594,12 @@ private fun isAuroraWallpaperActive(context: Context): Boolean {
         wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
 }
 
-private fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
+private suspend fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
     val history = WallpaperHistoryManager.loadHistory(context)
     val idMap = mutableMapOf<Int, String>()
-    val items = history.map { item ->
+
+    // 加载历史记录
+    val historyItems = history.map { item ->
         val hashId = item.id.hashCode()
         idMap[hashId] = item.id
         VideoItem(
@@ -1739,7 +1608,25 @@ private fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem>, Map<I
             mediaType = item.mediaType
         )
     }
-    return items to idMap
+
+    // 加载本地视频和图片
+    val localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 100)
+    val localImages = LocalImageScanner.scanImages(context, offset = 0, limit = 100)
+    val localMedia = (localVideos + localImages).sortedByDescending { it.dateAdded }
+
+    val localItems = localMedia.map { media ->
+        val hashId = media.uri.toString().hashCode()
+        idMap[hashId] = media.uri.toString()
+        VideoItem(
+            id = hashId,
+            uri = media.uri,
+            mediaType = media.mediaType
+        )
+    }
+
+    // 合并：本地媒体在前，历史记录在后
+    val allItems = localItems + historyItems
+    return allItems to idMap
 }
 
 private fun loadSavedVideos(context: Context): Uri? {
@@ -1822,376 +1709,5 @@ fun ThemeButton(
             color = Color.White,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
-    }
-}
-
-@Composable
-fun LocalVideoLibrary(
-    localVideos: List<LocalVideo>,
-    localVideoPreviews: MutableMap<Long, Bitmap>,
-    themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
-    isLoading: Boolean,
-    autoHideTimer: Int,
-    isVisible: Boolean,
-    playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
-    previewProcessor: PreviewProcessor,
-    displayMode: String,
-    onVisibilityChange: (Boolean) -> Unit,
-    onLoadMore: () -> Unit,
-    onVideoClick: (LocalVideo) -> Unit
-) {
-    val listState = rememberLazyListState()
-    val offsetX by animateDpAsState(
-        targetValue = if (isVisible) 0.dp else 400.dp,
-        animationSpec = tween(durationMillis = 300)
-    )
-
-    // 选中状态管理 - 触控播放
-    var selectedVideoId by remember { mutableStateOf<Long?>(null) }
-
-    // 自动隐藏倒计时 - 折叠时回收所有播放器资源
-    LaunchedEffect(isVisible, autoHideTimer) {
-        if (isVisible) {
-            delay((autoHideTimer * 1000).toLong())
-            // 折叠前释放所有播放器
-            playerPool.releaseAll()
-            selectedVideoId = null
-            onVisibilityChange(false)
-        }
-    }
-
-    // 跟踪可见项，实现增量销毁
-    // 注意：LRU 池已经自动管理数量上限，这里只需要释放完全不可见的播放器
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
-            .collect { visibleItems ->
-                val visibleUris = visibleItems.mapNotNull { itemInfo ->
-                    val index = itemInfo.index - 1 // 减1因为第一个是提示卡片
-                    if (index >= 0 && index < localVideos.size) {
-                        localVideos[index].uri.toString()
-                    } else null
-                }.toSet()
-
-                // 增量销毁：释放不可见的播放器
-                // LRU 池会自动管理数量上限，这里只是提前清理不可见的
-                // 注意：由于 LRU 池内部使用 LinkedHashMap，我们不能直接遍历 keys
-                // 所以这里的逻辑简化为：让 LRU 池自动管理即可
-            }
-    }
-
-    // 预览处理：为可见的图片生成缩略图
-    LaunchedEffect(listState, localVideos) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
-            .collect { visibleItems ->
-                val visibleVideos = visibleItems.mapNotNull { itemInfo ->
-                    val index = itemInfo.index - 1 // 减1因为第一个是提示卡片
-                    if (index >= 0 && index < localVideos.size) {
-                        localVideos[index]
-                    } else null
-                }
-
-                // 提交预览请求
-                previewProcessor.submit(
-                    items = visibleVideos.map { video ->
-                        PreviewProcessor.PreviewRequest(
-                            id = video.id.toInt(),
-                            uri = video.uri,
-                            hasPreview = localVideoPreviews.containsKey(video.id),
-                            mediaType = video.mediaType
-                        )
-                    },
-                    displayMode = displayMode,
-                    onPreviewReady = { id, uri, bitmap ->
-                        localVideoPreviews[id.toLong()] = bitmap
-                    }
-                )
-            }
-    }
-
-    // 只在显示或动画中时占用完整空间，隐藏后只显示滑动区域
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (isVisible || offsetX < 400.dp) 176.dp else 40.dp)
-    ) {
-        if (isVisible || offsetX < 400.dp) {
-            // 横向滑动视频列表 - 添加滑动阻尼效果
-            // 关键优化：降低滑动速度，确保资源回收速度 > 创建速度
-            val density = LocalDensity.current
-            val flingBehavior = remember {
-                object : FlingBehavior {
-                    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-                        // 降低滑动速度到原来的 40%，增加阻尼效果
-                        val dampedVelocity = initialVelocity * 0.4f
-                        return scrollBy(dampedVelocity)
-                    }
-                }
-            }
-
-            LazyRow(
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                flingBehavior = flingBehavior,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(x = offsetX)
-                    .background(themeColors?.surface ?: MaterialTheme.colorScheme.surface)
-            ) {
-                // 提示卡片 - 最左边
-                item {
-                    Box(
-                        modifier = Modifier
-                            .height(160.dp)
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.tap_video_to_set_wallpaper),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-
-                items(localVideos, key = { it.id }) { video ->
-                    LocalVideoCard(
-                        video = video,
-                        previewBitmap = localVideoPreviews[video.id],
-                        themeColors = themeColors,
-                        playerPool = playerPool,
-                        displayMode = displayMode,
-                        isSelected = selectedVideoId == video.id,
-                        onClick = {
-                            // 触控切换选中状态
-                            selectedVideoId = if (selectedVideoId == video.id) null else video.id
-                            // 点击后设置为壁纸
-                            onVideoClick(video)
-                        }
-                    )
-                }
-
-                // 加载更多指示器
-                if (localVideos.isNotEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .height(160.dp)
-                                .clickable { if (!isLoading) onLoadMore() }
-                                .padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    color = themeColors?.primary ?: MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(R.string.swipe_right_to_load_more),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 滑动展开区域 - 始终显示在底部
-        if (!isVisible) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(40.dp)
-                    .background(themeColors?.surface?.copy(alpha = 0.9f) ?: MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures { _, dragAmount ->
-                            // 向左拖拽展开视频库
-                            if (dragAmount < -20) {
-                                onVisibilityChange(true)
-                            }
-                        }
-                    }
-                    .clickable { onVisibilityChange(true) },
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowLeft,
-                        contentDescription = "Show library",
-                        tint = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.swipe_left_to_show_library),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = themeColors?.onSurface ?: MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-
-    // 检测滑动到末尾
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { lastVisibleIndex ->
-                if (lastVisibleIndex != null && lastVisibleIndex >= localVideos.size - 2 && !isLoading) {
-                    onLoadMore()
-                }
-            }
-    }
-}
-
-@Composable
-fun LocalVideoCard(
-    video: LocalVideo,
-    previewBitmap: Bitmap?,
-    themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
-    playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
-    displayMode: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
-    val uriKey = video.uri.toString()
-
-    // 图片不需要播放器
-    val exoPlayer = if (video.mediaType == MediaType.VIDEO) {
-        remember(uriKey) {
-            playerPool.getOrCreate(uriKey, video.uri)
-        }
-    } else {
-        null
-    }
-
-    DisposableEffect(uriKey) {
-        onDispose {
-            // 播放器由 LRU 池管理，不在这里释放
-        }
-    }
-
-    // 触控播放：只有视频且选中时才播放
-    LaunchedEffect(isSelected, exoPlayer) {
-        exoPlayer?.let {
-            if (isSelected) {
-                it.play()
-            } else {
-                it.pause()
-                it.seekTo(0)
-            }
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .width(120.dp)
-            .height(160.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .border(
-                width = 1.dp,
-                color = themeColors?.cardBorder ?: MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .background(MaterialTheme.colorScheme.surface)
-    ) {
-        if (video.mediaType == MediaType.IMAGE) {
-            // 显示图片预览
-            previewBitmap?.let { bitmap ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } ?: Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        } else {
-            // 显示视频
-            exoPlayer?.let { player ->
-                key(displayMode) {
-                    AndroidView(
-                        factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                this.player = player
-                                useController = false
-                                isClickable = false
-                                isFocusable = false
-                                resizeMode = if (displayMode == "fit") {
-                                    AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                } else {
-                                    AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                }
-                                layoutParams = android.view.ViewGroup.LayoutParams(
-                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-                            }
-                        },
-                        update = { view ->
-                            view.player = player
-                            view.resizeMode = if (displayMode == "fit") {
-                                AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            } else {
-                                AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                            }
-                        },
-                        onRelease = { view ->
-                            view.player = null
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable { onClick() }
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(4.dp)
-        ) {
-            Text(
-                text = video.displayName,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White,
-                maxLines = 1,
-                fontSize = 10.sp
-            )
-        }
     }
 }
