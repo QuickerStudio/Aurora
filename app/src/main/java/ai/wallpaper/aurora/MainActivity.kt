@@ -11,6 +11,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -50,15 +51,20 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -239,6 +245,10 @@ fun MainScreen(
     // 视频列表状态 - 从历史记录加载
     var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
+    var pressedCardId by remember { mutableStateOf<Int?>(null) }
+    val cardBounds = remember { mutableStateMapOf<Int, Rect>() }
+    // 保留已触达卡片的播放器：播放态/暂停态都属于已保留，滑出屏幕才销毁
+    val retainedPlayerIds = remember { mutableStateListOf<Int>() }
     // 保存 hashCode 到原始 ID 的映射
     var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
     // 预览窗口显示数量（支持下拉加载更多）
@@ -1381,7 +1391,25 @@ fun MainScreen(
                                     }
                                 }
                                 val keysToRemove = previewBitmaps.keys.filter { it !in extendedActiveIds }
+                                if (keysToRemove.isNotEmpty()) {
+                                    android.util.Log.d("PreviewCleanup", "🗑️ Removing ${keysToRemove.size} thumbnails out of range")
+                                }
                                 keysToRemove.forEach { previewBitmaps.remove(it) }
+
+                                // 三态逻辑：滑出屏幕才销毁；只要还在保留范围内，就允许维持暂停态
+                                val retainedIdsToRemove = retainedPlayerIds.filter { it !in extendedActiveIds }
+                                if (retainedIdsToRemove.isNotEmpty()) {
+                                    android.util.Log.d("PreviewCleanup", "🗑️ Destroying ${retainedIdsToRemove.size} retained players out of range")
+                                    retainedPlayerIds.removeAll(retainedIdsToRemove.toSet())
+                                }
+
+                                // 如果当前播放目标滑出范围，先暂停并取消选中
+                                selectedVideoId?.let { currentSelected ->
+                                    if (currentSelected !in extendedActiveIds) {
+                                        android.util.Log.d("PreviewCleanup", "🚫 Selected video $currentSelected out of range, deselecting")
+                                        selectedVideoId = null
+                                    }
+                                }
                             }
                         }
 
@@ -1421,18 +1449,67 @@ fun MainScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
+                                .pointerInput(displayedVideos) {
+                                }
                         ) {
                             itemsIndexed(displayedVideos, key = { _, video -> video.id }) { _, video ->
                                 VideoGridItem(
                                     video = video,
                                     previewBitmap = previewBitmaps[video.id],
                                     isSelected = selectedVideoId == video.id,
+                                    shouldRetainPlayer = video.id in retainedPlayerIds,
                                     themeColors = themeColors,
                                     playerPool = previewPlayerPool,
+                                    pressedCardId = pressedCardId,
                                     onVideoTouch = { videoId ->
-                                        android.util.Log.d("VideoClick", "👆 Clicked video $videoId, current selected: $selectedVideoId")
-                                        selectedVideoId = if (selectedVideoId == videoId) null else videoId
-                                        android.util.Log.d("VideoClick", "   New selected: $selectedVideoId")
+                                        android.util.Log.d("VideoClick", "🎯 Select video $videoId, current: $selectedVideoId")
+                                        if (videoId == -1) {
+                                            selectedVideoId = null
+                                            pressedCardId = null
+                                            android.util.Log.d("VideoClick", "   Deselected, now: null")
+                                        } else {
+                                            if (videoId !in retainedPlayerIds) {
+                                                retainedPlayerIds.add(videoId)
+                                                android.util.Log.d("VideoClick", "   Retain player for: $videoId")
+                                            }
+                                            pressedCardId = videoId
+                                            selectedVideoId = videoId
+                                            android.util.Log.d("VideoClick", "   Selected: $selectedVideoId")
+                                        }
+                                    },
+                                    onPointerMove = { sourceVideoId, rawX, rawY ->
+                                        val hitCardId = cardBounds.entries.firstOrNull { entry ->
+                                            val bounds = entry.value
+                                            rawX >= bounds.left && rawX <= bounds.right && rawY >= bounds.top && rawY <= bounds.bottom
+                                        }?.key
+
+                                        if (hitCardId == null) {
+                                            if (selectedVideoId != null || pressedCardId != null) {
+                                                android.util.Log.d("VideoTouch", "⏸️ Pointer left all cards, pause preview")
+                                            }
+                                            selectedVideoId = null
+                                            pressedCardId = null
+                                        } else {
+                                            if (hitCardId !in retainedPlayerIds) {
+                                                retainedPlayerIds.add(hitCardId)
+                                            }
+                                            if (pressedCardId != hitCardId) {
+                                                android.util.Log.d("VideoTouch", "🔄 Pointer moved from $pressedCardId to $hitCardId (source $sourceVideoId)")
+                                            }
+                                            pressedCardId = hitCardId
+                                            selectedVideoId = hitCardId
+                                        }
+                                    },
+                                    onPointerRelease = {
+                                        android.util.Log.d("VideoTouch", "👆 Pointer released from card $pressedCardId")
+                                        pressedCardId = null
+                                        selectedVideoId = null
+                                    },
+                                    onBoundsChanged = { id, bounds ->
+                                        cardBounds[id] = bounds
+                                    },
+                                    onBoundsDisposed = { id ->
+                                        cardBounds.remove(id)
                                     },
                                     onVideoClick = { videoUri ->
                                         videoUri?.let { uri ->
@@ -1493,14 +1570,21 @@ fun MainScreen(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun VideoGridItem(
     video: VideoItem,
     previewBitmap: Bitmap?,
     isSelected: Boolean,
+    shouldRetainPlayer: Boolean,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
+    pressedCardId: Int?,
     onVideoTouch: (Int) -> Unit,
+    onPointerMove: (Int, Float, Float) -> Unit,
+    onPointerRelease: () -> Unit,
+    onBoundsChanged: (Int, Rect) -> Unit,
+    onBoundsDisposed: (Int) -> Unit,
     onVideoClick: (Uri?) -> Unit = {},
     onVideoLongPress: (Int) -> Unit = {},
     displayMode: String = "fit"
@@ -1518,75 +1602,73 @@ fun VideoGridItem(
         }
     )
 
-    // 按 URI 复用播放器 - 使用 LRU 池（仅视频）
+    // 按 URI 延迟创建播放器：只有进入播放/暂停生命周期后才创建，避免未触达卡片提前占用播放器
     val uriKey = video.uri?.toString() ?: ""
-    val exoPlayer = remember(uriKey) {
-        if (uriKey.isNotEmpty() && video.uri != null && video.mediaType == MediaType.VIDEO) {
-            playerPool.getOrCreate(uriKey, video.uri)
+    val shouldHavePlayer = shouldRetainPlayer && uriKey.isNotEmpty() && video.uri != null && video.mediaType == MediaType.VIDEO
+    val exoPlayer = remember(shouldHavePlayer, uriKey) {
+        if (shouldHavePlayer) {
+            playerPool.getOrCreate(uriKey, video.uri!!)
         } else {
             null
         }
     }
 
-    // 播放器准备状态 - 依赖 exoPlayer 和 isSelected
-    var isPlayerReady by remember(exoPlayer, isSelected) {
+    // 播放器准备状态 - 只依赖 exoPlayer，不依赖 isSelected
+    var isPlayerReady by remember(exoPlayer) {
         mutableStateOf(false).also {
-            android.util.Log.d("PlayerState", "🔄 Reset isPlayerReady for video ${video.id}, isSelected: $isSelected")
+            android.util.Log.d("PlayerState", "🔄 Reset isPlayerReady for video ${video.id}")
         }
     }
 
-    // 监听播放器准备状态
-    LaunchedEffect(exoPlayer, isSelected) {
-        if (!isSelected) {
-            // 未选中时，不需要监听
-            android.util.Log.d("PlayerState", "⏭️ Video ${video.id} not selected, skip listener")
-            return@LaunchedEffect
-        }
+    // 监听播放器状态并在离开保留态时解绑监听
+    DisposableEffect(exoPlayer) {
+        if (exoPlayer == null) return@DisposableEffect onDispose { }
 
-        exoPlayer?.let { player ->
-            android.util.Log.d("PlayerState", "👂 Start listening video ${video.id}, current state: ${player.playbackState}")
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                val stateStr = when(playbackState) {
+                    Player.STATE_IDLE -> "IDLE"
+                    Player.STATE_BUFFERING -> "BUFFERING"
+                    Player.STATE_READY -> "READY"
+                    Player.STATE_ENDED -> "ENDED"
+                    else -> "UNKNOWN"
+                }
+                android.util.Log.d("PlayerState", "🎬 Video ${video.id} state changed: $stateStr")
 
-            val listener = object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    val stateStr = when(playbackState) {
-                        Player.STATE_IDLE -> "IDLE"
-                        Player.STATE_BUFFERING -> "BUFFERING"
-                        Player.STATE_READY -> "READY"
-                        Player.STATE_ENDED -> "ENDED"
-                        else -> "UNKNOWN"
-                    }
-                    android.util.Log.d("PlayerState", "🎬 Video ${video.id} state changed: $stateStr (isSelected: $isSelected)")
-
-                    if (playbackState == Player.STATE_READY) {
+                when (playbackState) {
+                    Player.STATE_READY -> {
                         isPlayerReady = true
                         android.util.Log.d("PlayerState", "✅ Video ${video.id} ready to play")
-                    } else if (playbackState == Player.STATE_IDLE) {
+                    }
+                    Player.STATE_IDLE -> {
                         isPlayerReady = false
                         android.util.Log.w("PlayerState", "⚠️ Video ${video.id} went to IDLE state")
                     }
+                    Player.STATE_ENDED -> {
+                        android.util.Log.d("PlayerState", "🔁 Video ${video.id} ended, looping")
+                    }
                 }
             }
-            player.addListener(listener)
-            // 检查当前状态
-            if (player.playbackState == Player.STATE_READY) {
-                isPlayerReady = true
-                android.util.Log.d("PlayerState", "✅ Video ${video.id} already ready")
-            }
         }
-    }
 
-    // 清理播放器监听器
-    DisposableEffect(exoPlayer, isSelected) {
+        android.util.Log.d("PlayerState", "👂 Start listening video ${video.id}, current state: ${exoPlayer.playbackState}")
+        exoPlayer.addListener(listener)
+
+        if (exoPlayer.playbackState == Player.STATE_READY) {
+            isPlayerReady = true
+            android.util.Log.d("PlayerState", "✅ Video ${video.id} already ready")
+        }
+
         onDispose {
-            if (isSelected) {
-                android.util.Log.d("PlayerState", "🧹 Cleanup for video ${video.id}")
-            }
+            exoPlayer.removeListener(listener)
+            android.util.Log.d("PlayerState", "🧹 Cleanup for video ${video.id}")
         }
     }
 
-    // 不在这里释放，由 LRU 池自动管理
+    // 不在这里释放，由 LRU 池和保留范围共同管理
     DisposableEffect(uriKey) {
         onDispose {
+            onBoundsDisposed(video.id)
             // 播放器由 LRU 池管理，不需要手动释放
         }
     }
@@ -1616,6 +1698,9 @@ fun VideoGridItem(
     Box(
         modifier = Modifier
             .aspectRatio(3f / 4f)
+            .onGloballyPositioned { coordinates ->
+                onBoundsChanged(video.id, coordinates.boundsInRoot())
+            }
             .graphicsLayer {
                 // 轻微缩小
                 val scale = 1f - deleteProgress * 0.2f
@@ -1631,19 +1716,43 @@ fun VideoGridItem(
                 shape = RoundedCornerShape(12.dp)
             )
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 1f - deleteProgress * 0.5f))
-            .pointerInput(Unit) {
+            .pointerInput(pressedCardId) {
                 detectTapGestures(
                     onPress = {
+                        android.util.Log.d("VideoClick", "👇 Press down on video ${video.id}")
                         onVideoTouch(video.id)
-                        tryAwaitRelease()
+                        val released = tryAwaitRelease()
+                        if (released) {
+                            onPointerRelease()
+                        }
                     },
                     onTap = {
+                        // 快速点击应用壁纸
                         onVideoClick(video.uri)
                     },
                     onLongPress = {
+                        // 长按删除
                         isDeleting = true
                     }
                 )
+            }
+            .pointerInteropFilter { event ->
+                if (pressedCardId == null) {
+                    return@pointerInteropFilter false
+                }
+
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_MOVE,
+                    MotionEvent.ACTION_DOWN -> {
+                        onPointerMove(video.id, event.rawX, event.rawY)
+                    }
+
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_CANCEL -> {
+                        onPointerRelease()
+                    }
+                }
+                false
             }
     ) {
         // 底层：始终显示缩略图（避免黑屏）
