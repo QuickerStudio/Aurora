@@ -1798,22 +1798,50 @@ private fun stopAuroraWallpaper(
             val lockWallpaperInfo = wallpaperManager.getWallpaperInfo(android.app.WallpaperManager.FLAG_LOCK)
             android.util.Log.d("MainActivity", "Lock screen wallpaper info: $lockWallpaperInfo")
 
+            var shouldClearLockScreen = false
+
             if (lockWallpaperInfo != null) {
                 if (lockWallpaperInfo.packageName == context.packageName &&
                     lockWallpaperInfo.serviceName == VideoLiveWallpaperService::class.java.name) {
                     // 锁屏使用了 Aurora 的 Live Wallpaper
-                    android.util.Log.d("MainActivity", "Clearing Aurora lock screen live wallpaper")
-                    wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
-                    android.util.Log.d("MainActivity", "Lock screen live wallpaper cleared successfully")
-                    hasActiveWallpaper = true
+                    android.util.Log.d("MainActivity", "Lock screen uses Aurora live wallpaper")
+                    shouldClearLockScreen = true
                 } else {
                     // 锁屏使用了其他 Live Wallpaper，不清除
                     android.util.Log.d("MainActivity", "Lock screen uses other live wallpaper, skipping")
                 }
             } else {
-                // 锁屏可能使用了静态壁纸，尝试清除
-                android.util.Log.d("MainActivity", "Attempting to clear lock screen static wallpaper")
+                // 锁屏可能使用了静态壁纸
+                android.util.Log.d("MainActivity", "Lock screen uses static wallpaper")
+                shouldClearLockScreen = true
+            }
+
+            if (shouldClearLockScreen) {
+                android.util.Log.d("MainActivity", "Clearing lock screen wallpaper")
+                // 清除锁屏壁纸
                 wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
+
+                // 尝试将主屏壁纸复制到锁屏（恢复默认行为）
+                try {
+                    val homeDrawable = wallpaperManager.drawable
+                    if (homeDrawable != null) {
+                        val bitmap = android.graphics.Bitmap.createBitmap(
+                            homeDrawable.intrinsicWidth,
+                            homeDrawable.intrinsicHeight,
+                            android.graphics.Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = android.graphics.Canvas(bitmap)
+                        homeDrawable.setBounds(0, 0, canvas.width, canvas.height)
+                        homeDrawable.draw(canvas)
+
+                        wallpaperManager.setBitmap(bitmap, null, true, android.app.WallpaperManager.FLAG_LOCK)
+                        bitmap.recycle()
+                        android.util.Log.d("MainActivity", "Lock screen set to follow home screen wallpaper")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("MainActivity", "Failed to copy home wallpaper to lock screen", e)
+                }
+
                 android.util.Log.d("MainActivity", "Lock screen wallpaper cleared successfully")
                 hasActiveWallpaper = true
             }
