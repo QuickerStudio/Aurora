@@ -1,6 +1,7 @@
 package ai.wallpaper.aurora.utils
 
 import android.content.Context
+import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -10,6 +11,7 @@ import java.util.LinkedHashMap
 /**
  * LRU 播放器池管理器
  * 严格限制播放器数量，使用 LRU 策略淘汰最久未使用的播放器
+ * 注意：必须在主线程调用
  */
 class LRUPlayerPool(
     private val context: Context,
@@ -32,8 +34,15 @@ class LRUPlayerPool(
      * 获取或创建播放器
      * 如果池中已存在，直接返回并更新访问时间
      * 如果不存在，创建新播放器（可能触发 LRU 淘汰）
+     * 注意：必须在主线程调用
      */
     fun getOrCreate(uriKey: String, videoUri: android.net.Uri): ExoPlayer {
+        // 检查是否在主线程
+        check(Looper.myLooper() == Looper.getMainLooper()) {
+            "LRUPlayerPool.getOrCreate() must be called on the main thread. " +
+            "Current thread: ${Thread.currentThread().name}"
+        }
+
         return pool.getOrPut(uriKey) {
             logMemoryUsage("Before creating player")
             android.util.Log.d("LRUPlayerPool", "Creating new player for URI: $uriKey (pool size: ${pool.size})")

@@ -1321,13 +1321,21 @@ fun MainScreen(
                                 val startRow = (firstVisibleRow - 2).coerceAtLeast(0)
                                 val endRow = (lastVisibleRow + 2).coerceAtMost((displayedVideos.size - 1) / 2)
 
-                                Triple(visibleVideos, startRow, endRow)
-                            }.collect { (visibleVideos, startRow, endRow) ->
+                                // 返回包含firstVisibleRow和lastVisibleRow的数据
+                                data class ScrollData(
+                                    val visibleVideos: List<VideoItem>,
+                                    val startRow: Int,
+                                    val endRow: Int,
+                                    val firstVisibleRow: Int,
+                                    val lastVisibleRow: Int
+                                )
+                                ScrollData(visibleVideos, startRow, endRow, firstVisibleRow, lastVisibleRow)
+                            }.collect { scrollData ->
                                 // 逐行扫描：按行优先级提交预览请求
                                 val rowPrioritizedVideos = mutableListOf<VideoItem>()
 
                                 // 先加载可见行
-                                for (row in startRow..endRow) {
+                                for (row in scrollData.startRow..scrollData.endRow) {
                                     val index1 = row * 2
                                     val index2 = row * 2 + 1
 
@@ -1357,9 +1365,22 @@ fun MainScreen(
                                 )
 
 
-                                // 增量回收：清理不在范围内的预览
-                                val activeIds = rowPrioritizedVideos.map { it.id }.toSet()
-                                val keysToRemove = previewBitmaps.keys.filter { it !in activeIds }
+                                // 增量回收：只清理远离可见区域的预览（保留更大范围）
+                                // 保留可见行 + 前后10行，避免点击时误删
+                                val extendedStartRow = (scrollData.firstVisibleRow - 10).coerceAtLeast(0)
+                                val extendedEndRow = (scrollData.lastVisibleRow + 10).coerceAtMost((displayedVideos.size - 1) / 2)
+                                val extendedActiveIds = mutableSetOf<Int>()
+                                for (row in extendedStartRow..extendedEndRow) {
+                                    val index1 = row * 2
+                                    val index2 = row * 2 + 1
+                                    if (index1 < displayedVideos.size) {
+                                        extendedActiveIds.add(displayedVideos[index1].id)
+                                    }
+                                    if (index2 < displayedVideos.size) {
+                                        extendedActiveIds.add(displayedVideos[index2].id)
+                                    }
+                                }
+                                val keysToRemove = previewBitmaps.keys.filter { it !in extendedActiveIds }
                                 keysToRemove.forEach { previewBitmaps.remove(it) }
                             }
                         }
@@ -1409,7 +1430,9 @@ fun MainScreen(
                                     themeColors = themeColors,
                                     playerPool = previewPlayerPool,
                                     onVideoTouch = { videoId ->
+                                        android.util.Log.d("VideoClick", "👆 Clicked video $videoId, current selected: $selectedVideoId")
                                         selectedVideoId = if (selectedVideoId == videoId) null else videoId
+                                        android.util.Log.d("VideoClick", "   New selected: $selectedVideoId")
                                     },
                                     onVideoClick = { videoUri ->
                                         videoUri?.let { uri ->
@@ -1505,16 +1528,41 @@ fun VideoGridItem(
         }
     }
 
-    // 播放器准备状态
-    var isPlayerReady by remember(exoPlayer) { mutableStateOf(false) }
+    // 播放器准备状态 - 依赖 exoPlayer 和 isSelected
+    var isPlayerReady by remember(exoPlayer, isSelected) {
+        mutableStateOf(false).also {
+            android.util.Log.d("PlayerState", "🔄 Reset isPlayerReady for video ${video.id}, isSelected: $isSelected")
+        }
+    }
 
     // 监听播放器准备状态
-    LaunchedEffect(exoPlayer) {
+    LaunchedEffect(exoPlayer, isSelected) {
+        if (!isSelected) {
+            // 未选中时，不需要监听
+            android.util.Log.d("PlayerState", "⏭️ Video ${video.id} not selected, skip listener")
+            return@LaunchedEffect
+        }
+
         exoPlayer?.let { player ->
+            android.util.Log.d("PlayerState", "👂 Start listening video ${video.id}, current state: ${player.playbackState}")
+
             val listener = object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    val stateStr = when(playbackState) {
+                        Player.STATE_IDLE -> "IDLE"
+                        Player.STATE_BUFFERING -> "BUFFERING"
+                        Player.STATE_READY -> "READY"
+                        Player.STATE_ENDED -> "ENDED"
+                        else -> "UNKNOWN"
+                    }
+                    android.util.Log.d("PlayerState", "🎬 Video ${video.id} state changed: $stateStr (isSelected: $isSelected)")
+
                     if (playbackState == Player.STATE_READY) {
                         isPlayerReady = true
+                        android.util.Log.d("PlayerState", "✅ Video ${video.id} ready to play")
+                    } else if (playbackState == Player.STATE_IDLE) {
+                        isPlayerReady = false
+                        android.util.Log.w("PlayerState", "⚠️ Video ${video.id} went to IDLE state")
                     }
                 }
             }
@@ -1522,6 +1570,16 @@ fun VideoGridItem(
             // 检查当前状态
             if (player.playbackState == Player.STATE_READY) {
                 isPlayerReady = true
+                android.util.Log.d("PlayerState", "✅ Video ${video.id} already ready")
+            }
+        }
+    }
+
+    // 清理播放器监听器
+    DisposableEffect(exoPlayer, isSelected) {
+        onDispose {
+            if (isSelected) {
+                android.util.Log.d("PlayerState", "🧹 Cleanup for video ${video.id}")
             }
         }
     }
@@ -1535,14 +1593,22 @@ fun VideoGridItem(
 
     // 根据选中状态控制播放
     LaunchedEffect(isSelected, exoPlayer) {
-        exoPlayer?.let {
-            if (isSelected) {
-                it.playWhenReady = true
-                it.play()
-            } else {
-                it.playWhenReady = false
-                it.pause()
-                it.seekTo(0)
+        exoPlayer?.let { player ->
+            try {
+                if (isSelected) {
+                    android.util.Log.d("VideoPreview", "▶️ Playing video ${video.id}, player state: ${player.playbackState}")
+                    player.playWhenReady = true
+                    player.play()
+                } else {
+                    android.util.Log.d("VideoPreview", "⏸️ Pausing video ${video.id}, player state: ${player.playbackState}")
+                    player.playWhenReady = false
+                    player.pause()
+                    // 不要 seekTo(0)，避免显示黑色第一帧
+                    // 保持当前位置，下次播放从当前位置继续
+                }
+            } catch (e: IllegalStateException) {
+                // 播放器已被释放，忽略
+                android.util.Log.w("VideoPreview", "⚠️ Player already released for video ${video.id}: ${e.message}")
             }
         }
     }
