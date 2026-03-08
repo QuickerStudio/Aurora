@@ -1504,6 +1504,27 @@ fun VideoGridItem(
         }
     }
 
+    // 播放器准备状态
+    var isPlayerReady by remember(exoPlayer) { mutableStateOf(false) }
+
+    // 监听播放器准备状态
+    LaunchedEffect(exoPlayer) {
+        exoPlayer?.let { player ->
+            val listener = object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        isPlayerReady = true
+                    }
+                }
+            }
+            player.addListener(listener)
+            // 检查当前状态
+            if (player.playbackState == Player.STATE_READY) {
+                isPlayerReady = true
+            }
+        }
+    }
+
     // 不在这里释放，由 LRU 池自动管理
     DisposableEffect(uriKey) {
         onDispose {
@@ -1515,8 +1536,10 @@ fun VideoGridItem(
     LaunchedEffect(isSelected, exoPlayer) {
         exoPlayer?.let {
             if (isSelected) {
+                it.playWhenReady = true
                 it.play()
             } else {
+                it.playWhenReady = false
                 it.pause()
                 it.seekTo(0)
             }
@@ -1585,8 +1608,8 @@ fun VideoGridItem(
             }
         }
 
-        // 上层：选中时叠加播放器（仅视频）
-        if (isSelected && exoPlayer != null && video.mediaType == MediaType.VIDEO) {
+        // 上层：选中时叠加播放器（仅视频且播放器已准备好）
+        if (isSelected && exoPlayer != null && video.mediaType == MediaType.VIDEO && isPlayerReady) {
             key(displayMode) {
                 AndroidView(
                     factory = { ctx ->
@@ -1676,15 +1699,15 @@ private suspend fun loadPreviewItems(context: Context): Pair<List<VideoItem>, Ma
     val allVideos = localVideoItems + historyVideoItems
     val allImages = localImageItems + historyImageItems
 
-    // 交错排列：一列视频，一列图片
+    // 交错排列：左列图片（大拇指易触达），右列视频
     val interleavedItems = mutableListOf<VideoItem>()
     val maxSize = maxOf(allVideos.size, allImages.size)
     for (i in 0 until maxSize) {
-        if (i < allVideos.size) {
-            interleavedItems.add(allVideos[i])
-        }
         if (i < allImages.size) {
             interleavedItems.add(allImages[i])
+        }
+        if (i < allVideos.size) {
+            interleavedItems.add(allVideos[i])
         }
     }
 
