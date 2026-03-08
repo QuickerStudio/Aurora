@@ -1340,9 +1340,7 @@ fun MainScreen(
                         LaunchedEffect(gridState) {
                             snapshotFlow { gridState.isScrollInProgress }
                                 .collect { isScrolling ->
-                                    if (isScrolling) {
-                                        isLocalLibraryVisible = false
-                                    }
+                                    // 滚动时的处理逻辑（如果需要）
                                 }
                         }
 
@@ -1417,15 +1415,17 @@ fun MainScreen(
                                     },
                                     onVideoLongPress = { videoId ->
                                         // 长按删除历史记录
-                                        val originalId = videoIdMap[videoId]
-                                        originalId?.let { id ->
-                                            WallpaperHistoryManager.deleteHistory(context, id)
-                                            val (items, idMap) = loadHistoryVideoItems(context)
-                                            videoList = items
-                                            videoIdMap = idMap
-                                            historyPreviewProcessor.clear()
-                                            // 重置显示数量
-                                            historyDisplayCount = minOf(10, items.size)
+                                        scope.launch {
+                                            val originalId = videoIdMap[videoId]
+                                            originalId?.let { id ->
+                                                WallpaperHistoryManager.deleteHistory(context, id)
+                                                val (items, idMap) = loadHistoryVideoItems(context)
+                                                videoList = items
+                                                videoIdMap = idMap
+                                                historyPreviewProcessor.clear()
+                                                // 重置显示数量
+                                                historyDisplayCount = minOf(10, items.size)
+                                            }
                                         }
                                     },
                                     displayMode = mediaDisplayMode
@@ -1609,24 +1609,52 @@ private suspend fun loadHistoryVideoItems(context: Context): Pair<List<VideoItem
         )
     }
 
-    // 加载本地视频和图片
+    // 并行加载本地视频和图片
     val localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 100)
     val localImages = LocalImageScanner.scanImages(context, offset = 0, limit = 100)
-    val localMedia = (localVideos + localImages).sortedByDescending { it.dateAdded }
 
-    val localItems = localMedia.map { media ->
+    // 转换为 VideoItem
+    val localVideoItems = localVideos.map { media ->
         val hashId = media.uri.toString().hashCode()
         idMap[hashId] = media.uri.toString()
         VideoItem(
             id = hashId,
             uri = media.uri,
-            mediaType = media.mediaType
+            mediaType = MediaType.VIDEO
         )
     }
 
-    // 合并：本地媒体在前，历史记录在后
-    val allItems = localItems + historyItems
-    return allItems to idMap
+    val localImageItems = localImages.map { media ->
+        val hashId = media.uri.toString().hashCode()
+        idMap[hashId] = media.uri.toString()
+        VideoItem(
+            id = hashId,
+            uri = media.uri,
+            mediaType = MediaType.IMAGE
+        )
+    }
+
+    // 分离历史记录中的视频和图片
+    val historyVideoItems = historyItems.filter { it.mediaType == MediaType.VIDEO }
+    val historyImageItems = historyItems.filter { it.mediaType == MediaType.IMAGE }
+
+    // 合并：本地+历史，分别按类型
+    val allVideos = localVideoItems + historyVideoItems
+    val allImages = localImageItems + historyImageItems
+
+    // 交错排列：一列视频，一列图片
+    val interleavedItems = mutableListOf<VideoItem>()
+    val maxSize = maxOf(allVideos.size, allImages.size)
+    for (i in 0 until maxSize) {
+        if (i < allVideos.size) {
+            interleavedItems.add(allVideos[i])
+        }
+        if (i < allImages.size) {
+            interleavedItems.add(allImages[i])
+        }
+    }
+
+    return interleavedItems to idMap
 }
 
 private fun loadSavedVideos(context: Context): Uri? {
