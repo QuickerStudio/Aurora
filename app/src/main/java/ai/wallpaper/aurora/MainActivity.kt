@@ -1339,7 +1339,7 @@ fun MainScreen(
                                     }
                                 }
 
-                                // 提交预览请求
+                                // 提交预览请求（缩略图）
                                 previewProcessor.submit(
                                     items = rowPrioritizedVideos.map { video ->
                                         PreviewProcessor.PreviewRequest(
@@ -1355,6 +1355,14 @@ fun MainScreen(
                                         previewBitmaps[id] = bitmap
                                     }
                                 )
+
+                                // 预加载视频播放器（逐行扫描）
+                                rowPrioritizedVideos
+                                    .filter { it.mediaType == MediaType.VIDEO && it.uri != null }
+                                    .forEach { video ->
+                                        // 触发播放器创建和准备
+                                        previewPlayerPool.getOrCreate(video.uri.toString(), video.uri!!)
+                                    }
 
                                 // 增量回收：清理不在范围内的预览
                                 val activeIds = rowPrioritizedVideos.map { it.id }.toSet()
