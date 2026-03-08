@@ -1962,6 +1962,7 @@ fun LocalVideoLibrary(
                         previewBitmap = localVideoPreviews[video.id],
                         themeColors = themeColors,
                         playerPool = playerPool,
+                        displayMode = displayMode,
                         isSelected = selectedVideoId == video.id,
                         onClick = {
                             // 触控切换选中状态
@@ -2059,6 +2060,7 @@ fun LocalVideoCard(
     previewBitmap: Bitmap?,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
+    displayMode: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -2110,7 +2112,7 @@ fun LocalVideoCard(
                 Image(
                     bitmap = bitmap.asImageBitmap(),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             } ?: Box(
@@ -2134,6 +2136,11 @@ fun LocalVideoCard(
                             useController = false
                             isClickable = false
                             isFocusable = false
+                            resizeMode = if (displayMode == "fit") {
+                                AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            } else {
+                                AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            }
                             layoutParams = android.view.ViewGroup.LayoutParams(
                                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -2142,6 +2149,11 @@ fun LocalVideoCard(
                     },
                     update = { view ->
                         view.player = player
+                        view.resizeMode = if (displayMode == "fit") {
+                            AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        } else {
+                            AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        }
                     },
                     onRelease = { view ->
                         view.player = null
