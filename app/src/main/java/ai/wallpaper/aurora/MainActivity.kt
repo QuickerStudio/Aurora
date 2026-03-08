@@ -88,7 +88,7 @@ import ai.wallpaper.aurora.utils.LocalVideoScanner
 import ai.wallpaper.aurora.utils.LocalImageScanner
 import ai.wallpaper.aurora.utils.LocalVideo
 import ai.wallpaper.aurora.utils.MediaType
-import ai.wallpaper.aurora.utils.HistoryPreviewProcessor
+import ai.wallpaper.aurora.utils.PreviewProcessor
 import ai.wallpaper.aurora.utils.VideoThumbnailCache
 import java.io.File
 
@@ -247,12 +247,16 @@ fun MainScreen(
 
     // 历史卡片播放器池 - LRU 策略，最多 3 个播放器
     val historyPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
-    val historyPreviewProcessor = remember { HistoryPreviewProcessor(context) }
+    val historyPreviewProcessor = remember { PreviewProcessor(context) }
+
+    // 本地视频库预览处理器
+    val localPreviewProcessor = remember { PreviewProcessor(context) }
 
     // 清理历史播放器池
     DisposableEffect(Unit) {
         onDispose {
             historyPreviewProcessor.cancel()
+            localPreviewProcessor.cancel()
             historyPlayerPool.releaseAll()
         }
     }
@@ -262,6 +266,8 @@ fun MainScreen(
     var localVideoOffset by remember { mutableStateOf(0) }
     var isLoadingLocalVideos by remember { mutableStateOf(false) }
     var isLocalLibraryVisible by remember { mutableStateOf(true) }
+    // 本地视频预览缩略图状态
+    val localVideoPreviews = remember { mutableStateMapOf<Long, Bitmap>() }
 
     // 本地视频库播放器池 - LRU 策略，最多 3 个播放器
     val localPlayerPool = remember { ai.wallpaper.aurora.utils.LRUPlayerPool(context, maxSize = 3) }
@@ -1356,7 +1362,7 @@ fun MainScreen(
 
                                 historyPreviewProcessor.submit(
                                     items = prioritizedVideos.map { video ->
-                                        HistoryPreviewProcessor.PreviewRequest(
+                                        PreviewProcessor.PreviewRequest(
                                             id = video.id,
                                             uri = video.uri,
                                             hasPreview = video.previewBitmap != null,
@@ -1478,11 +1484,13 @@ fun MainScreen(
                     // 本地视频库横向滑动栏 - 增量加载和销毁
                     LocalVideoLibrary(
                         localVideos = localVideos,
+                        localVideoPreviews = localVideoPreviews,
                         themeColors = themeColors,
                         isLoading = isLoadingLocalVideos,
                         autoHideTimer = autoHideTimer,
                         isVisible = isLocalLibraryVisible,
                         playerPool = localPlayerPool,
+                        previewProcessor = localPreviewProcessor,
                         onVisibilityChange = { isVisible ->
                             isLocalLibraryVisible = isVisible
                         },
@@ -1817,11 +1825,13 @@ fun ThemeButton(
 @Composable
 fun LocalVideoLibrary(
     localVideos: List<LocalVideo>,
+    localVideoPreviews: MutableMap<Long, Bitmap>,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     isLoading: Boolean,
     autoHideTimer: Int,
     isVisible: Boolean,
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
+    previewProcessor: PreviewProcessor,
     onVisibilityChange: (Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onVideoClick: (LocalVideo) -> Unit
@@ -1862,6 +1872,34 @@ fun LocalVideoLibrary(
                 // LRU 池会自动管理数量上限，这里只是提前清理不可见的
                 // 注意：由于 LRU 池内部使用 LinkedHashMap，我们不能直接遍历 keys
                 // 所以这里的逻辑简化为：让 LRU 池自动管理即可
+            }
+    }
+
+    // 预览处理：为可见的图片生成缩略图
+    LaunchedEffect(listState, localVideos) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+            .collect { visibleItems ->
+                val visibleVideos = visibleItems.mapNotNull { itemInfo ->
+                    val index = itemInfo.index - 1 // 减1因为第一个是提示卡片
+                    if (index >= 0 && index < localVideos.size) {
+                        localVideos[index]
+                    } else null
+                }
+
+                // 提交预览请求
+                previewProcessor.submit(
+                    items = visibleVideos.map { video ->
+                        PreviewProcessor.PreviewRequest(
+                            id = video.id.toInt(),
+                            uri = video.uri,
+                            hasPreview = localVideoPreviews.containsKey(video.id),
+                            mediaType = video.mediaType
+                        )
+                    },
+                    onPreviewReady = { id, uri, bitmap ->
+                        localVideoPreviews[id.toLong()] = bitmap
+                    }
+                )
             }
     }
 
@@ -1916,6 +1954,7 @@ fun LocalVideoLibrary(
                 items(localVideos, key = { it.id }) { video ->
                     LocalVideoCard(
                         video = video,
+                        previewBitmap = localVideoPreviews[video.id],
                         themeColors = themeColors,
                         playerPool = playerPool,
                         isSelected = selectedVideoId == video.id,
@@ -2012,6 +2051,7 @@ fun LocalVideoLibrary(
 @Composable
 fun LocalVideoCard(
     video: LocalVideo,
+    previewBitmap: Bitmap?,
     themeColors: ai.wallpaper.aurora.ui.theme.ThemeColors?,
     playerPool: ai.wallpaper.aurora.utils.LRUPlayerPool,
     isSelected: Boolean,
@@ -2020,26 +2060,30 @@ fun LocalVideoCard(
     val context = LocalContext.current
     val uriKey = video.uri.toString()
 
-    // 从 LRU 播放器池获取或创建播放器
-    // LRU 池会自动管理播放器数量上限（最多3个）
-    val exoPlayer = remember(uriKey) {
-        playerPool.getOrCreate(uriKey, video.uri)
+    // 图片不需要播放器
+    val exoPlayer = if (video.mediaType == MediaType.VIDEO) {
+        remember(uriKey) {
+            playerPool.getOrCreate(uriKey, video.uri)
+        }
+    } else {
+        null
     }
 
-    // 不在这里释放，由 LocalVideoLibrary 的可见性检测统一管理
     DisposableEffect(uriKey) {
         onDispose {
             // 播放器由 LRU 池管理，不在这里释放
         }
     }
 
-    // 触控播放：只有选中时才播放
+    // 触控播放：只有视频且选中时才播放
     LaunchedEffect(isSelected, exoPlayer) {
-        if (isSelected) {
-            exoPlayer.play()
-        } else {
-            exoPlayer.pause()
-            exoPlayer.seekTo(0)
+        exoPlayer?.let {
+            if (isSelected) {
+                it.play()
+            } else {
+                it.pause()
+                it.seekTo(0)
+            }
         }
     }
 
@@ -2055,27 +2099,52 @@ fun LocalVideoCard(
             )
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = false
-                    isClickable = false
-                    isFocusable = false
-                    layoutParams = android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-            },
-            update = { view ->
-                view.player = exoPlayer
-            },
-            onRelease = { view ->
-                view.player = null
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        if (video.mediaType == MediaType.IMAGE) {
+            // 显示图片预览
+            previewBitmap?.let { bitmap ->
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } ?: Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        } else {
+            // 显示视频
+            exoPlayer?.let { player ->
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            this.player = player
+                            useController = false
+                            isClickable = false
+                            isFocusable = false
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                        }
+                    },
+                    update = { view ->
+                        view.player = player
+                    },
+                    onRelease = { view ->
+                        view.player = null
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
 
         Box(
             modifier = Modifier

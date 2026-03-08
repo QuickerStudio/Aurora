@@ -13,7 +13,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.LinkedHashMap
 
-class HistoryPreviewProcessor(
+/**
+ * 通用预览处理器
+ * 用于处理视频和图片的缩略图生成，支持优先级队列和失败重试
+ */
+class PreviewProcessor(
     context: Context,
     private val workerDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate
@@ -50,7 +54,7 @@ class HistoryPreviewProcessor(
         scope.launch {
             try {
                 while (true) {
-                    val next = synchronized(this@HistoryPreviewProcessor) {
+                    val next = synchronized(this@PreviewProcessor) {
                         val entry = pendingItems.entries.firstOrNull()
                         if (entry != null) {
                             pendingItems.remove(entry.key)
@@ -76,21 +80,21 @@ class HistoryPreviewProcessor(
                                 onPreviewReady(next.id, uri, thumbnail)
                             }
                         } else {
-                            synchronized(this@HistoryPreviewProcessor) {
+                            synchronized(this@PreviewProcessor) {
                                 failedKeys.add(next.stableKey)
                             }
                         }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (e: Exception) {
-                        android.util.Log.e("HistoryPreviewProcessor", "Failed to generate preview for $uri", e)
-                        synchronized(this@HistoryPreviewProcessor) {
+                        android.util.Log.e("PreviewProcessor", "Failed to generate preview for $uri", e)
+                        synchronized(this@PreviewProcessor) {
                             failedKeys.add(next.stableKey)
                         }
                     }
                 }
             } finally {
-                synchronized(this@HistoryPreviewProcessor) {
+                synchronized(this@PreviewProcessor) {
                     if (pendingItems.isEmpty()) {
                         workerRunning = false
                     }
@@ -124,7 +128,7 @@ class HistoryPreviewProcessor(
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("HistoryPreviewProcessor", "Failed to load image thumbnail", e)
+            android.util.Log.e("PreviewProcessor", "Failed to load image thumbnail", e)
             null
         }
     }
