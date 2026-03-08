@@ -4,7 +4,8 @@
       "Bash(./gradlew :app:compileDebugKotlin:*)",
       "Bash(git:*)",
       "Bash(./gradlew assembleDebug:*)",
-      "Bash(./gradlew compileDebugKotlin:*)"
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

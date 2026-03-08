@@ -14,6 +14,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -41,10 +44,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,7 +140,8 @@ data class VideoItem(
     val uri: Uri?,
     val thumbnailUri: Uri? = null,
     val previewBitmap: Bitmap? = null,
-    val mediaType: MediaType = MediaType.VIDEO
+    val mediaType: MediaType = MediaType.VIDEO,
+    val displayName: String = ""
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -211,6 +217,10 @@ fun MainScreen(
     var showReportIssueDialog by remember { mutableStateOf(false) }
     var issueTitle by remember { mutableStateOf("") }
     var issueBody by remember { mutableStateOf("") }
+
+    // 搜索状态
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchVisible by remember { mutableStateOf(false) }
 
     // 获取当前主题颜色配置
     val themeColors = if (!followSystemTheme) {
@@ -394,27 +404,18 @@ fun MainScreen(
                                     scope.launch {
                                         isStopPressed = true
                                         delay(100)
-                                        try {
-                                            // 检查是否有视频壁纸正在运行
-                                            val wallpaperManager = android.app.WallpaperManager.getInstance(context)
-                                            val wallpaperInfo = wallpaperManager.wallpaperInfo
 
-                                            if (wallpaperInfo != null &&
-                                                wallpaperInfo.packageName == context.packageName &&
-                                                wallpaperInfo.serviceName == VideoLiveWallpaperService::class.java.name) {
-                                                // 有视频壁纸在运行，清除它
-                                                wallpaperManager.clear()
+                                        stopAuroraWallpaper(
+                                            context = context,
+                                            onSuccess = {
                                                 stopButtonState = "success"
-                                            } else {
-                                                // 没有视频壁纸在运行，显示错误（抖动）
+                                            },
+                                            onError = {
                                                 stopButtonState = "error"
                                             }
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("MainActivity", "Failed to clear wallpaper", e)
-                                            stopButtonState = "error"
-                                        } finally {
-                                            isStopPressed = false
-                                        }
+                                        )
+
+                                        isStopPressed = false
                                     }
                                 },
                                 shape = RoundedCornerShape(999.dp),
@@ -1103,63 +1104,133 @@ fun MainScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(64.dp)
                         .background(themeColors?.topBarBackground ?: MaterialTheme.colorScheme.surface)
-                        .padding(horizontal = 8.dp, vertical = 0.dp),
+                        .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // 左侧：菜单按钮
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = stringResource(R.string.settings),
+                            tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+
+                    // 中间区域：图标 + 标题 或 搜索框
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 菜单按钮
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        // 默认显示：图标 + 标题
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = !isSearchVisible,
+                            enter = expandHorizontally(),
+                            exit = shrinkHorizontally()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Aurora 图标
+                                Icon(
+                                    painter = androidx.compose.ui.res.painterResource(auroraIconRes),
+                                    contentDescription = "Aurora",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = Color.Unspecified
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Aurora 文字标题
+                                Text(
+                                    text = "Aurora",
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        fontFamily = FontFamily(Font(R.font.mistral))
+                                    ),
+                                    color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+
+                        // 搜索展开时显示：搜索框
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = isSearchVisible,
+                            enter = expandHorizontally(),
+                            exit = shrinkHorizontally()
+                        ) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text("搜索媒体...") },
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground,
+                                    unfocusedTextColor = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground,
+                                    focusedBorderColor = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground,
+                                    unfocusedBorderColor = (themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground).copy(alpha = 0.5f),
+                                    cursorColor = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground,
+                                    focusedPlaceholderColor = (themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground).copy(alpha = 0.6f),
+                                    unfocusedPlaceholderColor = (themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground).copy(alpha = 0.6f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(end = 8.dp)
+                            )
+                        }
+                    }
+
+                    // 右侧按钮区域
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        // 搜索按钮（始终显示）
+                        IconButton(
+                            onClick = {
+                                isSearchVisible = !isSearchVisible
+                                if (!isSearchVisible) {
+                                    searchQuery = ""
+                                }
+                            }
+                        ) {
                             Icon(
-                                Icons.Default.Menu,
-                                contentDescription = stringResource(R.string.settings),
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "搜索",
                                 tint = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
                             )
                         }
 
-                        // Aurora 图标
-                        Icon(
-                            painter = androidx.compose.ui.res.painterResource(auroraIconRes),
-                            contentDescription = "Aurora",
-                            modifier = Modifier.size(48.dp),
-                            tint = Color.Unspecified
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Aurora 文字标题
-                        Text(
-                            text = "Aurora",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Normal,
-                                fontFamily = FontFamily(Font(R.font.mistral))
-                            ),
-                            color = themeColors?.topBarContent ?: MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-
-                    // FAB按钮 - 右侧（备用方案：始终调用系统壁纸设置，安全可靠）
-                    if (showFab) {
-                        IconButton(
-                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
-                            modifier = Modifier
-                                .offset(x = (-10).dp)
-                                .width(56.dp)
-                                .background(
-                                    color = fabButtonBackground,
-                                    shape = RoundedCornerShape(12.dp)
+                        // FAB按钮
+                        if (showFab) {
+                            IconButton(
+                                onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                                modifier = Modifier
+                                    .width(56.dp)
+                                    .background(
+                                        color = fabButtonBackground,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = stringResource(R.string.choose_video_file),
+                                    tint = fabButtonContent
                                 )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = stringResource(R.string.choose_video_file),
-                                tint = fabButtonContent
-                            )
+                            }
                         }
+                    }
+                }
+
+                // 5秒自动折叠搜索框
+                LaunchedEffect(isSearchVisible) {
+                    if (isSearchVisible) {
+                        delay(5000)
+                        isSearchVisible = false
+                        searchQuery = ""
                     }
                 }
 
@@ -1203,8 +1274,15 @@ fun MainScreen(
                     } else {
                         // 视频网格
                         val gridState = rememberLazyGridState()
-                        val displayedVideos = remember(videoList, previewDisplayCount) {
-                            videoList.take(previewDisplayCount)
+                        val displayedVideos = remember(videoList, previewDisplayCount, searchQuery) {
+                            val filtered = if (searchQuery.isNotBlank()) {
+                                videoList.filter { video ->
+                                    video.displayName.contains(searchQuery, ignoreCase = true)
+                                }
+                            } else {
+                                videoList
+                            }
+                            filtered.take(previewDisplayCount)
                         }
 
                         LaunchedEffect(displayedVideos, gridState) {
@@ -1689,6 +1767,48 @@ private fun isAuroraWallpaperActive(context: Context): Boolean {
         wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
 }
 
+/**
+ * 统一停止 Aurora 壁纸功能
+ * 包括：主屏动态壁纸 + 锁屏壁纸（恢复默认）
+ */
+private fun stopAuroraWallpaper(
+    context: Context,
+    onSuccess: () -> Unit,
+    onError: () -> Unit
+) {
+    try {
+        var hasActiveWallpaper = false
+        val wallpaperManager = android.app.WallpaperManager.getInstance(context)
+
+        // 1. 检查并停止主屏动态壁纸
+        val wallpaperInfo = wallpaperManager.wallpaperInfo
+        if (wallpaperInfo != null &&
+            wallpaperInfo.packageName == context.packageName &&
+            wallpaperInfo.serviceName == VideoLiveWallpaperService::class.java.name) {
+            // 清除 Aurora 主屏动态壁纸
+            wallpaperManager.clear(android.app.WallpaperManager.FLAG_SYSTEM)
+            hasActiveWallpaper = true
+        }
+
+        // 2. 清除锁屏壁纸（恢复系统默认）
+        try {
+            wallpaperManager.clear(android.app.WallpaperManager.FLAG_LOCK)
+            hasActiveWallpaper = true
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to clear lock screen wallpaper", e)
+        }
+
+        if (hasActiveWallpaper) {
+            onSuccess()
+        } else {
+            onError()
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("MainActivity", "Failed to stop Aurora wallpaper", e)
+        onError()
+    }
+}
+
 private suspend fun loadPreviewItems(context: Context): List<VideoItem> {
     // 并行加载本地视频和图片
     val localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 100)
@@ -1698,7 +1818,8 @@ private suspend fun loadPreviewItems(context: Context): List<VideoItem> {
         VideoItem(
             id = media.uri.toString().hashCode(),
             uri = media.uri,
-            mediaType = MediaType.VIDEO
+            mediaType = MediaType.VIDEO,
+            displayName = media.displayName
         )
     }
 
@@ -1706,7 +1827,8 @@ private suspend fun loadPreviewItems(context: Context): List<VideoItem> {
         VideoItem(
             id = media.uri.toString().hashCode(),
             uri = media.uri,
-            mediaType = MediaType.IMAGE
+            mediaType = MediaType.IMAGE,
+            displayName = media.displayName
         )
     }
 
