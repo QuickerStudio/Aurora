@@ -2109,12 +2109,19 @@ fun LocalVideoCard(
         if (video.mediaType == MediaType.IMAGE) {
             // 显示图片预览
             previewBitmap?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             } ?: Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -2129,37 +2136,39 @@ fun LocalVideoCard(
         } else {
             // 显示视频
             exoPlayer?.let { player ->
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            this.player = player
-                            useController = false
-                            isClickable = false
-                            isFocusable = false
-                            resizeMode = if (displayMode == "fit") {
+                key(displayMode) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                this.player = player
+                                useController = false
+                                isClickable = false
+                                isFocusable = false
+                                resizeMode = if (displayMode == "fit") {
+                                    AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                } else {
+                                    AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                }
+                                layoutParams = android.view.ViewGroup.LayoutParams(
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                            }
+                        },
+                        update = { view ->
+                            view.player = player
+                            view.resizeMode = if (displayMode == "fit") {
                                 AspectRatioFrameLayout.RESIZE_MODE_FIT
                             } else {
                                 AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                             }
-                            layoutParams = android.view.ViewGroup.LayoutParams(
-                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                        }
-                    },
-                    update = { view ->
-                        view.player = player
-                        view.resizeMode = if (displayMode == "fit") {
-                            AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        } else {
-                            AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        }
-                    },
-                    onRelease = { view ->
-                        view.player = null
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                        },
+                        onRelease = { view ->
+                            view.player = null
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
