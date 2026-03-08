@@ -16,6 +16,7 @@ import java.util.LinkedHashMap
 /**
  * 通用预览处理器
  * 用于处理视频和图片的缩略图生成，支持优先级队列和失败重试
+ * 使用奇偶分离（Odd-Even Partitioning）双线程交错处理
  */
 class PreviewProcessor(
     context: Context,
@@ -26,7 +27,8 @@ class PreviewProcessor(
     private val scope = CoroutineScope(SupervisorJob() + workerDispatcher)
     private val pendingItems = LinkedHashMap<String, PreviewRequest>()
     private val failedKeys = mutableSetOf<String>()
-    private var workerRunning = false
+    private var oddWorkerRunning = false
+    private var evenWorkerRunning = false
 
     fun submit(items: List<PreviewRequest>, displayMode: String = "fit", onPreviewReady: (Int, Uri, Bitmap) -> Unit) {
         synchronized(this) {
@@ -45,22 +47,39 @@ class PreviewProcessor(
                 pendingItems[item.stableKey] = item.copy(uri = uri)
             }
 
-            if (workerRunning || pendingItems.isEmpty()) {
+            if (pendingItems.isEmpty()) {
                 return
             }
-            workerRunning = true
-        }
 
+            // 启动奇数线程（处理索引 1, 3, 5...）
+            if (!oddWorkerRunning) {
+                oddWorkerRunning = true
+                launchWorker(isOdd = true, displayMode, onPreviewReady)
+            }
+
+            // 启动偶数线程（处理索引 2, 4, 6...）
+            if (!evenWorkerRunning) {
+                evenWorkerRunning = true
+                launchWorker(isOdd = false, displayMode, onPreviewReady)
+            }
+        }
+    }
+
+    private fun launchWorker(isOdd: Boolean, displayMode: String, onPreviewReady: (Int, Uri, Bitmap) -> Unit) {
         scope.launch {
             try {
                 while (true) {
                     val next = synchronized(this@PreviewProcessor) {
-                        val entry = pendingItems.entries.firstOrNull()
+                        // 奇偶分离：奇数线程处理奇数索引，偶数线程处理偶数索引
+                        val entry = pendingItems.entries.firstOrNull { entry ->
+                            val index = entry.value.id
+                            if (isOdd) index % 2 == 1 else index % 2 == 0
+                        }
                         if (entry != null) {
                             pendingItems.remove(entry.key)
                             entry.value
                         } else {
-                            workerRunning = false
+                            if (isOdd) oddWorkerRunning = false else evenWorkerRunning = false
                             null
                         }
                     } ?: break
@@ -95,9 +114,7 @@ class PreviewProcessor(
                 }
             } finally {
                 synchronized(this@PreviewProcessor) {
-                    if (pendingItems.isEmpty()) {
-                        workerRunning = false
-                    }
+                    if (isOdd) oddWorkerRunning = false else evenWorkerRunning = false
                 }
             }
         }
