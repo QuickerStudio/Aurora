@@ -23,7 +23,6 @@ import java.io.File
  * 2. 广播切换：监听 VIDEO_PATH_UPDATED 广播，实现动态切换视频
  * 3. 省电优化：同步 prepare() + start()，避免异步回调开销
  * 4. 独立进程：运行在 :wallpaper 进程，与主应用隔离
- * 5. 历史记录：通过广播通知主进程添加历史（跨进程通信）
  */
 class VideoLiveWallpaperService : WallpaperService() {
 
@@ -149,11 +148,6 @@ class VideoLiveWallpaperService : WallpaperService() {
             mediaPlayer?.setVolume(volume, volume)
 
             Log.d(TAG, "Playback started: $path")
-
-            // 成功播放后，通过广播通知主进程添加历史记录
-            if (path.startsWith("content://")) {
-                notifyVideoPlaybackStarted(path)
-            }
         }
 
         override fun onSurfaceCreated(holder: SurfaceHolder) {
@@ -173,22 +167,6 @@ class VideoLiveWallpaperService : WallpaperService() {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start playback", e)
                 releasePlayer()
-            }
-        }
-
-        /**
-         * 通知主进程添加历史记录（跨进程通信）
-         */
-        private fun notifyVideoPlaybackStarted(videoUri: String) {
-            try {
-                val intent = Intent(ACTION_VIDEO_PLAYBACK_STARTED).apply {
-                    putExtra(EXTRA_VIDEO_URI, videoUri)
-                    setPackage(this@VideoLiveWallpaperService.packageName)
-                }
-                this@VideoLiveWallpaperService.sendBroadcast(intent)
-                Log.d(TAG, "Sent playback started broadcast: $videoUri")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send playback broadcast", e)
             }
         }
 
@@ -247,8 +225,6 @@ class VideoLiveWallpaperService : WallpaperService() {
         private const val TAG = "VideoWallpaper"
         const val VIDEO_PARAMS_CONTROL_ACTION = "ai.wallpaper.aurora.VOLUME_CONTROL"
         const val VIDEO_PATH_UPDATED_ACTION = "ai.wallpaper.aurora.VIDEO_PATH_UPDATED"
-        const val ACTION_VIDEO_PLAYBACK_STARTED = "ai.wallpaper.aurora.VIDEO_PLAYBACK_STARTED"
-        const val EXTRA_VIDEO_URI = "video_uri"
         private const val KEY_ACTION = "music"
         private const val ACTION_MUSIC_UNMUTE = false
         private const val ACTION_MUSIC_MUTE = true

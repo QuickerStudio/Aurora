@@ -1,11 +1,9 @@
 package ai.wallpaper.aurora
 
 import android.Manifest
-import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
@@ -16,7 +14,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -74,7 +71,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -89,7 +85,6 @@ import ai.wallpaper.aurora.service.VideoLiveWallpaperService
 import ai.wallpaper.aurora.ui.theme.AuroraTheme
 import ai.wallpaper.aurora.ui.theme.getThemeColors
 import ai.wallpaper.aurora.ui.theme.getThemeAwareAuroraIcon
-import ai.wallpaper.aurora.data.WallpaperHistoryManager
 import ai.wallpaper.aurora.utils.LocalVideoScanner
 import ai.wallpaper.aurora.utils.LocalImageScanner
 import ai.wallpaper.aurora.utils.LocalVideo
@@ -100,69 +95,8 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
 
-    private var refreshHistoryCallback: (() -> Unit)? = null
-
-    private val historyRefreshReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == ACTION_REFRESH_HISTORY) {
-                android.util.Log.d("MainActivity", "Received history refresh broadcast")
-                refreshHistoryCallback?.invoke()
-            }
-        }
-    }
-
-    private val historyReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == VideoLiveWallpaperService.ACTION_VIDEO_PLAYBACK_STARTED) {
-                val videoUri = intent.getStringExtra(VideoLiveWallpaperService.EXTRA_VIDEO_URI)
-                videoUri?.let {
-                    try {
-                        WallpaperHistoryManager.addHistory(context, Uri.parse(it))
-                        android.util.Log.d("MainActivity", "Added to history from wallpaper service: $it")
-
-                        // 发送本地广播通知 UI 刷新
-                        val refreshIntent = Intent(ACTION_REFRESH_HISTORY)
-                        context.sendBroadcast(refreshIntent)
-                    } catch (e: Exception) {
-                        android.util.Log.e("MainActivity", "Failed to add history", e)
-                    }
-                }
-            }
-        }
-    }
-
-    companion object {
-        const val ACTION_REFRESH_HISTORY = "ai.wallpaper.aurora.REFRESH_HISTORY"
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 注册广播接收器（接收壁纸服务的播放通知）
-        val filter = IntentFilter(VideoLiveWallpaperService.ACTION_VIDEO_PLAYBACK_STARTED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(
-                this,
-                historyReceiver,
-                filter,
-                ContextCompat.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            registerReceiver(historyReceiver, filter)
-        }
-
-        // 注册历史刷新广播接收器
-        val refreshFilter = IntentFilter(ACTION_REFRESH_HISTORY)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(
-                this,
-                historyRefreshReceiver,
-                refreshFilter,
-                ContextCompat.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            registerReceiver(historyRefreshReceiver, refreshFilter)
-        }
 
         setContent {
             // 在 setContent 内部管理主题状态，这样可以响应状态变化
@@ -176,19 +110,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            // 历史刷新触发器
-            var historyRefreshTrigger by remember { mutableStateOf(0) }
-
-            // 设置刷新回调
-            DisposableEffect(Unit) {
-                refreshHistoryCallback = {
-                    historyRefreshTrigger++
-                }
-                onDispose {
-                    refreshHistoryCallback = null
-                }
-            }
-
             AuroraTheme(
                 selectedTheme = selectedTheme,
                 followSystemTheme = followSystemTheme
@@ -196,7 +117,6 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     initialFollowSystemTheme = followSystemTheme,
                     initialSelectedTheme = selectedTheme,
-                    historyRefreshTrigger = historyRefreshTrigger,
                     onThemeChange = { theme ->
                         selectedTheme = theme
                     },
@@ -205,16 +125,6 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            unregisterReceiver(historyReceiver)
-            unregisterReceiver(historyRefreshReceiver)
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Error unregistering receiver", e)
         }
     }
 }
@@ -233,7 +143,6 @@ data class VideoItem(
 fun MainScreen(
     initialFollowSystemTheme: Boolean = false,
     initialSelectedTheme: String = "classic",
-    historyRefreshTrigger: Int = 0,
     onThemeChange: (String) -> Unit = {},
     onFollowSystemThemeChange: (Boolean) -> Unit = {}
 ) {
@@ -242,15 +151,13 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     var videoPath by remember { mutableStateOf("") }
 
-    // 视频列表状态 - 从历史记录加载
+    // 视频列表状态 - 从媒体库扫描加载
     var videoList by remember { mutableStateOf(listOf<VideoItem>()) }
     var selectedVideoId by remember { mutableStateOf<Int?>(null) }
     var pressedCardId by remember { mutableStateOf<Int?>(null) }
     val cardBounds = remember { mutableStateMapOf<Int, Rect>() }
     // 保留已触达卡片的播放器：播放态/暂停态都属于已保留，滑出屏幕才销毁
     val retainedPlayerIds = remember { mutableStateListOf<Int>() }
-    // 保存 hashCode 到原始 ID 的映射
-    var videoIdMap by remember { mutableStateOf(mapOf<Int, String>()) }
     // 预览窗口显示数量（支持下拉加载更多）
     var previewDisplayCount by remember { mutableStateOf(10) }
     var isLoadingMorePreview by remember { mutableStateOf(false) }
@@ -375,10 +282,9 @@ fun MainScreen(
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             scope.launch {
-                // 权限授予后重新加载列表（包含本地媒体）
-                val (items, idMap) = loadPreviewItems(context)
+                // 权限授予后重新加载列表（仅包含本地媒体）
+                val items = loadPreviewItems(context)
                 videoList = items
-                videoIdMap = idMap
             }
         }
     }
@@ -396,9 +302,8 @@ fun MainScreen(
             VideoLiveWallpaperService.setToWallPaper(context)
 
             scope.launch {
-                val (items, idMap) = loadPreviewItems(context)
+                val items = loadPreviewItems(context)
                 videoList = items
-                videoIdMap = idMap
             }
         }
     }
@@ -415,22 +320,8 @@ fun MainScreen(
         }
 
         // 从预览窗口加载媒体列表
-        val (items, idMap) = loadPreviewItems(context)
+        val items = loadPreviewItems(context)
         videoList = items
-        videoIdMap = idMap
-    }
-
-    // 监听历史刷新触发器
-    LaunchedEffect(historyRefreshTrigger) {
-        if (historyRefreshTrigger > 0) {
-            android.util.Log.d("MainActivity", "Refreshing history list, trigger: $historyRefreshTrigger")
-            val (items, idMap) = loadPreviewItems(context)
-            videoList = items
-            videoIdMap = idMap
-            previewProcessor.clear()
-            // 重置显示数量
-            previewDisplayCount = minOf(10, items.size)
-        }
     }
 
     ModalNavigationDrawer(
@@ -1544,21 +1435,7 @@ fun MainScreen(
                                             }
                                         }
                                     },
-                                    onVideoLongPress = { videoId ->
-                                        // 长按删除历史记录
-                                        scope.launch {
-                                            val originalId = videoIdMap[videoId]
-                                            originalId?.let { id ->
-                                                WallpaperHistoryManager.deleteHistory(context, id)
-                                                val (items, idMap) = loadPreviewItems(context)
-                                                videoList = items
-                                                videoIdMap = idMap
-                                                previewProcessor.clear()
-                                                // 重置显示数量
-                                                previewDisplayCount = minOf(10, items.size)
-                                            }
-                                        }
-                                    },
+                                    onVideoLongPress = {},
                                     displayMode = mediaDisplayMode
                                 )
                             }
@@ -1589,18 +1466,7 @@ fun VideoGridItem(
     onVideoLongPress: (Int) -> Unit = {},
     displayMode: String = "fit"
 ) {
-    var isDeleting by remember { mutableStateOf(false) }
-
-    // 删除动画状态
-    val deleteProgress by animateFloatAsState(
-        targetValue = if (isDeleting) 1f else 0f,
-        animationSpec = tween(durationMillis = 800, easing = LinearEasing),
-        finishedListener = {
-            if (isDeleting) {
-                onVideoLongPress(video.id)
-            }
-        }
-    )
+    val deleteProgress = 0f
 
     // 按 URI 延迟创建播放器：只有进入播放/暂停生命周期后才创建，避免未触达卡片提前占用播放器
     val uriKey = video.uri?.toString() ?: ""
@@ -1729,10 +1595,6 @@ fun VideoGridItem(
                     onTap = {
                         // 快速点击应用壁纸
                         onVideoClick(video.uri)
-                    },
-                    onLongPress = {
-                        // 长按删除
-                        isDeleting = true
                     }
                 )
             }
@@ -1827,67 +1689,40 @@ private fun isAuroraWallpaperActive(context: Context): Boolean {
         wallpaperInfo.serviceName == ai.wallpaper.aurora.service.VideoLiveWallpaperService::class.java.name
 }
 
-private suspend fun loadPreviewItems(context: Context): Pair<List<VideoItem>, Map<Int, String>> {
-    val history = WallpaperHistoryManager.loadHistory(context)
-    val idMap = mutableMapOf<Int, String>()
-
-    // 加载历史记录
-    val historyItems = history.map { item ->
-        val hashId = item.id.hashCode()
-        idMap[hashId] = item.id
-        VideoItem(
-            id = hashId,
-            uri = Uri.parse(item.videoUri),
-            mediaType = item.mediaType
-        )
-    }
-
+private suspend fun loadPreviewItems(context: Context): List<VideoItem> {
     // 并行加载本地视频和图片
     val localVideos = LocalVideoScanner.scanVideos(context, offset = 0, limit = 100)
     val localImages = LocalImageScanner.scanImages(context, offset = 0, limit = 100)
 
-    // 转换为 VideoItem
     val localVideoItems = localVideos.map { media ->
-        val hashId = media.uri.toString().hashCode()
-        idMap[hashId] = media.uri.toString()
         VideoItem(
-            id = hashId,
+            id = media.uri.toString().hashCode(),
             uri = media.uri,
             mediaType = MediaType.VIDEO
         )
     }
 
     val localImageItems = localImages.map { media ->
-        val hashId = media.uri.toString().hashCode()
-        idMap[hashId] = media.uri.toString()
         VideoItem(
-            id = hashId,
+            id = media.uri.toString().hashCode(),
             uri = media.uri,
             mediaType = MediaType.IMAGE
         )
     }
 
-    // 分离历史记录中的视频和图片
-    val historyVideoItems = historyItems.filter { it.mediaType == MediaType.VIDEO }
-    val historyImageItems = historyItems.filter { it.mediaType == MediaType.IMAGE }
-
-    // 合并：本地+历史，分别按类型
-    val allVideos = localVideoItems + historyVideoItems
-    val allImages = localImageItems + historyImageItems
-
     // 交错排列：左列图片（大拇指易触达），右列视频
     val interleavedItems = mutableListOf<VideoItem>()
-    val maxSize = maxOf(allVideos.size, allImages.size)
+    val maxSize = maxOf(localVideoItems.size, localImageItems.size)
     for (i in 0 until maxSize) {
-        if (i < allImages.size) {
-            interleavedItems.add(allImages[i])
+        if (i < localImageItems.size) {
+            interleavedItems.add(localImageItems[i])
         }
-        if (i < allVideos.size) {
-            interleavedItems.add(allVideos[i])
+        if (i < localVideoItems.size) {
+            interleavedItems.add(localVideoItems[i])
         }
     }
 
-    return interleavedItems to idMap
+    return interleavedItems
 }
 
 private fun loadSavedVideos(context: Context): Uri? {
@@ -1922,8 +1757,7 @@ private fun saveVideoUri(context: Context, uri: Uri) {
         it.write(uri.toString().toByteArray())
     }
 
-    // 注意：不在这里添加历史记录，只有壁纸服务成功使用视频后才记录
-    // 历史记录由 VideoLiveWallpaperService 在 onSurfaceCreated 成功播放后添加
+    // 仅保存选中的媒体路径，预览列表始终来自媒体库扫描
 
     android.util.Log.d("MainActivity", "Video URI saved: $uri")
 }

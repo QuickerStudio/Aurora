@@ -44,7 +44,38 @@
     <string name="feedback_content">Feedback content</string>
     <string name="submit">Submit</string>
     <string name="user_guide">User guide</string>
-    <string name="user_guide_content">📱 Quick Start\n\n• First time: Tap the wallpaper button (top-right), select a video, then apply it in system settings\n• Quick switch: Tap any video card in history or local library to instantly switch wallpaper (no restart needed)\n\n🎬 Video Management\n\n• History: Automatically saves applied wallpapers, tap to quickly switch\n• Long press: Long press history cards to delete unwanted records\n• Local library: Horizontal scroll at bottom to browse all device videos\n• Show/Hide: Tap bottom button or swipe left to expand video library\n\n🎨 Personalization\n\n• Theme switch: 4 beautiful themes in sidebar (Classic/Modern/Elegant/Vibrant)\n• Follow system: Auto-adapt to system dark/light mode when enabled\n• Audio control: Enable video sound playback in settings\n• Hide icon: Hide app icon from launcher if desired\n\n💡 Pro Tips\n\n• Unlock fullscreen: Auto-play fullscreen video when device unlocks\n• Auto-hide: Set video library auto-hide timer (5/10/15 seconds)\n• Manual input: Enter video file path directly in sidebar\n• Scroll hide: Video library auto-collapses when scrolling history\n\n❓ Troubleshooting\n\n• Videos not showing? Check storage permissions\n• Switch not working? First-time use requires applying in system settings\n• Having issues? Tap "Report issue" to send us feedback</string>
+    <string name="user_guide_content">📱 Quick Start
+
+• First time: Tap the wallpaper button (top-right), select a video, then apply it in system settings
+• Browse preview: The main preview grid shows scanned images and videos from your media library
+• Apply wallpaper: Tap any preview card to set an image wallpaper or switch the live video wallpaper
+
+🎬 Media Preview
+
+• Media library: Browse scanned device photos and videos directly in the preview grid
+• Touch preview: Press and drag across cards to preview different items quickly
+• Load more: Scroll the preview area to keep loading more scanned media
+• Show/Hide: Tap bottom button or swipe left to expand the media tray
+
+🎨 Personalization
+
+• Theme switch: 4 beautiful themes in sidebar (Classic/Modern/Elegant/Vibrant)
+• Follow system: Auto-adapt to system dark/light mode when enabled
+• Audio control: Enable video sound playback in settings
+• Hide icon: Hide app icon from launcher if desired
+
+💡 Pro Tips
+
+• Unlock fullscreen: Auto-play fullscreen video when device unlocks
+• Auto-hide: Set media tray auto-hide timer (5/10/15 seconds)
+• Manual input: Enter video file path directly in sidebar
+• Mixed preview: Images and videos are arranged together for quicker selection
+
+❓ Troubleshooting
+
+• Media not showing? Check storage permissions
+• Switch not working? First-time use requires applying in system settings
+• Having issues? Tap "Report issue" to send us feedback</string>
     <string name="close">Close</string>
     <!--preference-->
     <string name="preference_play_video_with_sound" translatable="false">play_video_with_sound</string>
